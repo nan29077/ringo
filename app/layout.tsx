@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./ringo-home.css";
+import "./ringo-workspace.css";
 
 export const metadata: Metadata = {
   title: "Ringo — Digital goods, endless possibilities",
