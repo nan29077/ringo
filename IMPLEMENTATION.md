@@ -59,3 +59,13 @@ Built-in imagegen 사용, 각각 한 번씩 생성:
 - `public/images/type.webp`: cobalt & ivory typography specimen cards / large Aa / orange accents.
 - `public/images/coast.webp`: red vintage car / coastal road / golden analog light.
 프로젝트 에셋으로 최적화한 WebP를 사용. 상품은 모두 허구의 데모.
+
+## 메인페이지 2차 고도화
+
+- `components/ringo-home.tsx`로 메인 쇼핑몰을 분리하고 `app/ringo-home.css`의 범위 제한 스타일 적용.
+- 책/디자인/사진을 함께 소개하는 비대칭 대표 이미지와 대형 타이포그래피.
+- 카테고리 바로가기, 탭 형태 필터와 검색, 추천 상품 카드 개편.
+- 에디터 추천 디자인 키트 상세 소개, 데모 크리에이터 3팀 소개와 판매자별 상품 탐색.
+- 구매 과정 3단계, 접근 가능한 FAQ 아코디언, 판매자 소개 섹션.
+- 모든 새 안내문에 영문/한국어 병기 데이터 적용. 기존 상품·딥 링크·구매·백오피스 기능 유지.
+- 기존 생성형 이미지 재사용. 새로운 거래나 실제 고객 수를 주장하지 않음.
