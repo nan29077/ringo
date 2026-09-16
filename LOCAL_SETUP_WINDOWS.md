@@ -53,12 +53,23 @@ git pull --rebase origin main
 pnpm install --frozen-lockfile
 ```
 
+처음 한 번, 한글 커밋 설정:
+
+```powershell
+git config core.quotepath false
+git config i18n.commitEncoding utf-8
+git config i18n.logOutputEncoding utf-8
+git config commit.template .gitmessage.txt
+```
+
+커밋 메시지는 한국어로 작성합니다 (예: `git commit -m "판매자 정산 목록에 기간 필터 추가"`). 한글이 깨져 보이면 PowerShell에서 `[Console]::OutputEncoding = [Text.Encoding]::UTF8`을 먼저 실행하세요.
+
 작업 완료 후:
 
 ```powershell
 git status
 git add .
-git commit -m "작업 내용을 간단히 설명"
+git commit -m "작업 내용을 한국어로 간단히 설명"
 git push origin main
 ```
 
