@@ -9,6 +9,8 @@ Set-Location -LiteralPath $projectRoot
 # 관리자 권한 없이도 동작하도록 "corepack pnpm ..." 형태로 프로젝트에 지정된 pnpm을 바로 실행합니다.
 $env:COREPACK_ENABLE_DOWNLOAD_PROMPT = "0"
 $env:COREPACK_ENABLE_STRICT = "0"
+# 일부 네트워크에서 IPv6 연결 지연으로 패키지 다운로드가 매우 느려지는 문제를 피합니다.
+if (-not $env:NODE_OPTIONS) { $env:NODE_OPTIONS = "--dns-result-order=ipv4first" }
 
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
   throw "Git을 찾을 수 없습니다. Git for Windows를 설치한 뒤 PowerShell을 다시 여세요."
@@ -44,7 +46,8 @@ if ((Test-Path -LiteralPath "node_modules") -and -not (Test-Path -LiteralPath "n
   Write-Host "(옮겨둔 $oldName 폴더는 나중에 직접 지워도 됩니다.)"
 }
 
-Invoke-Pnpm -PnpmArgs @("install", "--frozen-lockfile")
+Write-Host "패키지를 설치합니다. 네트워크 상태에 따라 수 분 걸릴 수 있으며, 중간에 멈춰도 다시 실행하면 이어서 설치합니다." -ForegroundColor Cyan
+Invoke-Pnpm -PnpmArgs @("install", "--frozen-lockfile", "--reporter=append-only")
 
 Write-Host ""
 Write-Host "Ringo 로컬 환경 준비가 완료되었습니다." -ForegroundColor Green
