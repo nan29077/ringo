@@ -8,6 +8,8 @@ A bilingual digital-content marketplace prototype with an English storefront, Ko
 
 저장소를 내려받은 다음에는 PowerShell에서 아래처럼 준비하고 실행할 수 있습니다.
 
+가장 간단한 방법은 프로젝트 루트의 `start-ringo-preview.bat`를 더블클릭하는 것입니다. 필요한 패키지가 없으면 처음 한 번 설치하고, 서버가 준비되면 브라우저에서 미리보기를 자동으로 엽니다.
+
 ```powershell
 Set-Location "E:\프로젝트\링고"
 .\scripts\check-windows.ps1

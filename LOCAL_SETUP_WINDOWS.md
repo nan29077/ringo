@@ -36,6 +36,10 @@ pnpm install --frozen-lockfile
 
 ## 3. 로컬 실행
 
+프로젝트 폴더의 `start-ringo-preview.bat`를 더블클릭하면 서버가 준비된 뒤 브라우저가 자동으로 열립니다. 실행 창은 서버 로그를 보여주며, 종료할 때는 그 창에서 `Ctrl+C`를 누릅니다.
+
+PowerShell에서 직접 실행하려면 아래 명령을 사용합니다.
+
 ```powershell
 Set-Location "E:\프로젝트\링고"
 pnpm dev
