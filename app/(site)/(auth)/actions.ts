@@ -10,6 +10,7 @@ import { appOrigin, rateLimit, requestMeta } from "@/lib/server/request";
 import { sendMail } from "@/lib/server/mail";
 import { getT } from "@/lib/server/i18n-server";
 import { audit } from "@/lib/server/audit";
+import { DEMO_LOGIN_ACCOUNTS, demoLoginEnabled, type DemoRole } from "@/lib/server/demo-login";
 
 const email = z.string().trim().toLowerCase().email().max(200);
 
@@ -131,4 +132,20 @@ export async function verifyEmailToken(token: string) {
   await db.update(authTokens).set({ usedAt: new Date() }).where(eq(authTokens.id, row.id));
   await db.update(users).set({ emailVerifiedAt: new Date() }).where(eq(users.id, row.userId));
   return true;
+}
+
+/** Test login button (development / RINGO_DEMO_LOGIN=true only). Signs in as a seeded demo account without a password. */
+export async function demoLogin(role: DemoRole, next?: string): Promise<ActionResult> {
+  return run(async () => {
+    const { t } = await getT();
+    if (!demoLoginEnabled() || !(role in DEMO_LOGIN_ACCOUNTS)) throw new ActionError("forbidden");
+    const db = await getDb();
+    const [user] = await db.select().from(users).where(eq(users.email, DEMO_LOGIN_ACCOUNTS[role]));
+    if (!user || user.status !== "active") {
+      throw new ActionError(t("The test account does not exist. Reset the local database (.data) to recreate demo data.", "테스트 계정이 없습니다. 로컬 DB(.data 폴더)를 초기화하면 예시 데이터가 다시 만들어집니다."));
+    }
+    await createSession(db, user.id);
+    const fallback = role === "admin" ? "/admin" : role === "seller" ? "/seller" : "/account";
+    return { ok: true, redirect: role === "buyer" && isSafeNext(next) ? next! : fallback };
+  });
 }

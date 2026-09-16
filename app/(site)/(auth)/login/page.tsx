@@ -6,6 +6,8 @@ import { getT } from "@/lib/server/i18n-server";
 import { ActionForm } from "@/components/common/action-form";
 import { AuthCard, AuthInput, SubmitButton } from "../auth-card";
 import { login } from "../actions";
+import { DemoLoginButtons } from "../demo-login-buttons";
+import { demoLoginEnabled } from "@/lib/server/demo-login";
 
 export const metadata: Metadata = { title: "Log in" };
 
@@ -32,6 +34,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <div className="-mt-1 text-right text-xs"><Link href="/forgot-password" className="text-[#6f716a] underline-offset-2 hover:underline">{t("Forgot password?", "비밀번호를 잊으셨나요?")}</Link></div>
         <SubmitButton>{t("Log in", "로그인")}</SubmitButton>
       </ActionForm>
+      {demoLoginEnabled() && <DemoLoginButtons next={next} />}
     </AuthCard>
   );
 }
