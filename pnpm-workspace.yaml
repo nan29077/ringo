@@ -2,3 +2,7 @@ allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
+# 느린 네트워크에서 설치가 멈추지 않도록 동시 다운로드 수를 줄이고 재시도를 늘립니다.
+networkConcurrency: 6
+fetchRetries: 5
+fetchTimeout: 120000
