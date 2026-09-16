@@ -15,7 +15,7 @@ PowerShell에서 직접 실행하려면:
 ```powershell
 Set-Location "E:\프로젝트\링고"
 .\scripts\check-windows.ps1   # Node/pnpm 확인 + 의존성 설치
-pnpm dev                      # http://localhost:3031
+corepack pnpm dev             # http://localhost:3031
 ```
 
 별도 DB 설치가 필요 없습니다. 처음 실행하면 `.data/pglite`에 내장 PostgreSQL(PGlite)이 만들어지고 개발용 예시 데이터가 들어갑니다.
@@ -37,6 +37,8 @@ pnpm dev                      # http://localhost:3031
 - **구매자** : 쇼핑몰 홈·상품·판매자 스토어, 회원가입/로그인/비밀번호 재설정/이메일 인증, 결제(쿠폰·딥링크 유입 반영), 라이브러리·다운로드·강의 진도, 주문 상세·환불 요청·구매평, 위시리스트, 1:1 문의, 프로필·로그인 기기 관리, 판매자 입점 신청
 
 ## 명령어
+
+관리자 권한으로 `corepack enable`을 한 적이 없다면 아래 명령 앞에 `corepack`을 붙여 실행하세요 (예: `corepack pnpm dev`).
 
 | 명령 | 설명 |
 |---|---|

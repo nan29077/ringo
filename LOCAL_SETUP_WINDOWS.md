@@ -7,7 +7,7 @@
 
 - Node.js `22.13.0` 이상 (LTS 권장)
 - Git for Windows
-- pnpm `11.25.0` (Corepack으로 설치)
+- pnpm `11.25.0` — 따로 설치하지 않아도 됩니다. 스크립트가 Node.js에 포함된 Corepack으로 관리자 권한 없이 실행합니다
 
 PostgreSQL은 설치하지 않아도 됩니다. `DATABASE_URL`이 없으면 프로젝트 안의 내장 DB(`.data/pglite`)를 사용합니다.
 
@@ -28,8 +28,10 @@ Set-Location "E:\프로젝트\링고"
 PowerShell에서 직접 실행하려면 아래 명령을 사용합니다.
 
 ```powershell
-pnpm dev
+corepack pnpm dev
 ```
+
+`pnpm` 명령을 직접 쓰고 싶다면 관리자 권한 PowerShell에서 한 번만 `corepack enable`을 실행하세요. 관리자 권한이 없으면 `pnpm` 대신 `corepack pnpm`을 앞에 붙여 사용합니다.
 
 브라우저에서 `http://localhost:3031`을 엽니다. 예시 계정은 `README.md`를 참고하세요.
 개발 모드에서는 메일이 실제로 발송되지 않고 터미널과 관리자 → 고객 지원 → 메일 발송 내역에 기록됩니다 (비밀번호 재설정 링크 확인용).
