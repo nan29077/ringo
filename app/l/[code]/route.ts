@@ -4,6 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import * as s from "@/db/schema";
 import { getDb } from "@/lib/server/db";
 import { encodeAttribution, linkState } from "@/lib/server/links";
+import { clientIpFrom } from "@/lib/server/request";
 import { LANG_COOKIE } from "@/lib/i18n";
 
 export const runtime = "nodejs";
@@ -21,7 +22,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
   if (state !== "active" || row.product.status !== "published") {
     return NextResponse.redirect(new URL(`/p/${row.product.slug}?link=${state === "active" ? "unavailable" : state}`, base));
   }
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "";
+  const ip = clientIpFrom(request.headers) || "";
   const ua = request.headers.get("user-agent") || "";
   const visitorHash = createHash("sha256").update(`${ip}|${ua}|${new Date().toISOString().slice(0, 10)}`).digest("hex").slice(0, 32);
   await db.insert(s.linkClicks).values({ linkId: row.link.id, visitorHash, referrer: request.headers.get("referer")?.slice(0, 300) });

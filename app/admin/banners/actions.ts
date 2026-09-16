@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import * as s from "@/db/schema";
-import { requireAdmin } from "@/lib/server/auth";
+import { requireAdmin, isSafeNext } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
 import { run, type ActionResult } from "@/lib/server/action";
 import { audit } from "@/lib/server/audit";
@@ -31,7 +31,7 @@ const bannerInput = z
     ctaEn: opt(40),
     ctaKo: opt(40),
     imageKey: z.string().trim().min(1).max(300).regex(/^(preset:banner-(books|course|design)|public\/banners\/[a-zA-Z0-9/_.-]+)$/, "Choose a preset or upload an image"),
-    linkUrl: opt(500).refine((v) => !v || (v.startsWith("/") && !v.startsWith("//")) || /^https:\/\/[^\s]+$/.test(v), "Must start with / or https://"),
+    linkUrl: opt(500).refine((v) => !v || isSafeNext(v) || /^https:\/\/[^\s\\]+$/.test(v), "Must start with / or https://"),
     sort: z.coerce.number().int().min(0).max(100000),
     active: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
     startsAt: optionalDate,

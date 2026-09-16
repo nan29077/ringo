@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { getViewer } from "@/lib/server/auth";
+import { getViewer, isSafeNext } from "@/lib/server/auth";
 import { getT } from "@/lib/server/i18n-server";
 import { ActionForm } from "@/components/common/action-form";
 import { AuthCard, AuthInput, SubmitButton } from "../auth-card";
@@ -15,7 +15,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const { next } = await searchParams;
   const viewer = await getViewer();
   const { t } = await getT();
-  if (viewer) redirect(next && next.startsWith("/") && !next.startsWith("//") ? next : viewer.user.role === "admin" ? "/admin" : viewer.user.role === "seller" ? "/seller" : "/account");
+  if (viewer) redirect(isSafeNext(next) ? next : viewer.user.role === "admin" ? "/admin" : viewer.user.role === "seller" ? "/seller" : "/account");
   return (
     <AuthCard
       title={t("Welcome back.", "다시 만나 반가워요.")}

@@ -66,6 +66,6 @@
 ## 6. AWS 배포 개요
 - 권장: **ECS Fargate(또는 App Runner) + RDS PostgreSQL + S3 + SES + CloudFront/ALB(HTTPS)**
 - `Dockerfile` 포함 (`output: standalone`, `drizzle/` 마이그레이션 동봉, `/api/health` 헬스체크)
-- 필수 환경변수: `APP_URL`, `DATABASE_URL`(+`DATABASE_SSL=require`), `RINGO_ADMIN_EMAIL/PASSWORD`(최초 1회), `S3_BUCKET`, `AWS_REGION`, `SMTP_*`, `MAIL_FROM`, `CRON_SECRET`, 결제사 키
+- 필수 환경변수: `TRUSTED_PROXY_HOPS`(ALB 뒤면 1), `APP_URL`, `DATABASE_URL`(+`DATABASE_SSL=require`), `RINGO_ADMIN_EMAIL/PASSWORD`(최초 1회), `S3_BUCKET`, `AWS_REGION`, `SMTP_*`, `MAIL_FROM`, `CRON_SECRET`, 결제사 키
 - 서버 시작 시 마이그레이션 자동 적용(`DATABASE_AUTO_MIGRATE=false`로 끄고 배포 파이프라인에서 `pnpm db:migrate` 실행 가능)
 - 전체 목록은 `.env.example`

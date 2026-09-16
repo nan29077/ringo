@@ -83,6 +83,18 @@ export async function requireSeller(): Promise<Viewer & { seller: SellerProfile 
   return viewer as Viewer & { seller: SellerProfile };
 }
 
-export function isSafeNext(next: string | null | undefined) {
-  return !!next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\");
+/**
+ * Only same-site relative paths are allowed as post-login destinations.
+ * Rejects protocol-relative ("//x"), backslash tricks ("/\\x" → browsers read "//x"), control characters,
+ * and anything that resolves to another origin.
+ */
+export function isSafeNext(next: string | null | undefined): next is string {
+  if (!next || next.length > 2000) return false;
+  if (!next.startsWith("/") || next.startsWith("//")) return false;
+  if (/[\\\u0000-\u001f\u007f]/.test(next)) return false;
+  try {
+    return new URL(next, "https://ringo.invalid").origin === "https://ringo.invalid";
+  } catch {
+    return false;
+  }
 }

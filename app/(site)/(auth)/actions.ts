@@ -27,7 +27,13 @@ export async function login(fd: FormData): Promise<ActionResult> {
   return run(async () => {
     const input = z.object({ email, password: z.string().min(1).max(200), next: z.string().optional() }).parse(Object.fromEntries(fd));
     const meta = await requestMeta();
-    if (!rateLimit(`login:${meta.ip}:${input.email}`, 8, 15 * 60000) || !rateLimit(`login-ip:${meta.ip}`, 40, 15 * 60000)) throw new ActionError("too_many_attempts");
+    // Per-account limit does not depend on the IP, so rotating/forging addresses cannot bypass it.
+    const ipKey = meta.ip ?? "unknown";
+    if (
+      !rateLimit(`login-email:${input.email}`, 10, 15 * 60000) ||
+      !rateLimit(`login:${ipKey}:${input.email}`, 8, 15 * 60000) ||
+      (meta.ip !== null && !rateLimit(`login-ip:${meta.ip}`, 40, 15 * 60000))
+    ) throw new ActionError("too_many_attempts");
     const db = await getDb();
     const [user] = await db.select().from(users).where(eq(users.email, input.email));
     const ok = await verifyPassword(input.password, user?.passwordHash);
@@ -54,7 +60,7 @@ export async function signup(fd: FormData): Promise<ActionResult> {
     }).parse(Object.fromEntries(fd));
     if (passwordProblems(input.password)) throw new ActionError("weak_password");
     const meta = await requestMeta();
-    if (!rateLimit(`signup:${meta.ip}`, 10, 60 * 60000)) throw new ActionError("too_many_attempts");
+    if (!rateLimit(`signup:${meta.ip ?? "unknown"}`, meta.ip ? 10 : 60, 60 * 60000)) throw new ActionError("too_many_attempts");
     const db = await getDb();
     const { lang } = await getT();
     const [exists] = await db.select({ id: users.id }).from(users).where(eq(users.email, input.email));
@@ -96,7 +102,7 @@ export async function requestPasswordReset(fd: FormData): Promise<ActionResult> 
   return run(async () => {
     const { email: addr } = z.object({ email }).parse(Object.fromEntries(fd));
     const meta = await requestMeta();
-    if (!rateLimit(`reset:${meta.ip}`, 5, 60 * 60000)) throw new ActionError("too_many_attempts");
+    if (!rateLimit(`reset-email:${addr}`, 3, 60 * 60000) || !rateLimit(`reset:${meta.ip ?? "unknown"}`, meta.ip ? 5 : 30, 60 * 60000)) throw new ActionError("too_many_attempts");
     const db = await getDb();
     const [user] = await db.select().from(users).where(eq(users.email, addr));
     if (user && user.status === "active") {
