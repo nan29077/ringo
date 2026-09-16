@@ -1,4 +1,4 @@
-param(
+﻿param(
   [switch]$ValidateOnly,
   [switch]$NoBrowser
 )
@@ -20,8 +20,9 @@ if (-not $npmCommand) {
   throw "npm을 찾을 수 없습니다. Node.js 22 LTS 이상을 다시 설치하세요."
 }
 
-if (-not (Test-Path -LiteralPath (Join-Path $projectRoot "node_modules"))) {
-  Write-Host "처음 실행을 위한 패키지를 설치합니다." -ForegroundColor Yellow
+# Install when node_modules is missing or predates the server-based version (no embedded PostgreSQL package).
+if (-not (Test-Path -LiteralPath (Join-Path $projectRoot "node_modules\@electric-sql\pglite"))) {
+  Write-Host "처음 실행(또는 업데이트)을 위한 패키지를 설치합니다." -ForegroundColor Yellow
   & (Join-Path $PSScriptRoot "check-windows.ps1")
 }
 

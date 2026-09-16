@@ -1,4 +1,4 @@
-$ErrorActionPreference = "SilentlyContinue"
+﻿$ErrorActionPreference = "SilentlyContinue"
 $previewUrl = "http://localhost:3031"
 $deadline = (Get-Date).AddSeconds(90)
 

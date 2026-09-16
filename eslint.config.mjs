@@ -12,7 +12,17 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    ".data/**",
+    "test-results/**",
   ]),
+  {
+    rules: {
+      // Server Components render per request; reading Date.now() there is intentional.
+      "react-hooks/purity": "off",
+      // Covers and banners are served from our own /media route (local disk or S3); next/image is optional.
+      "@next/next/no-img-element": "off",
+    },
+  },
   {
     files: ["components/ui/**/*.{ts,tsx}", "hooks/use-mobile.ts"],
     rules: {

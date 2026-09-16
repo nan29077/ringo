@@ -1,0 +1,134 @@
+"use server";
+import { and, eq, gt, isNull } from "drizzle-orm";
+import { z } from "zod";
+import { authTokens, users } from "@/db/schema";
+import { getDb } from "@/lib/server/db";
+import { createSession, destroyOtherSessions, getViewer, isSafeNext } from "@/lib/server/auth";
+import { hashPassword, passwordProblems, randomToken, sha256, verifyPassword } from "@/lib/server/password";
+import { ActionError, run, type ActionResult } from "@/lib/server/action";
+import { appOrigin, rateLimit, requestMeta } from "@/lib/server/request";
+import { sendMail } from "@/lib/server/mail";
+import { getT } from "@/lib/server/i18n-server";
+import { audit } from "@/lib/server/audit";
+
+const email = z.string().trim().toLowerCase().email().max(200);
+
+async function destinationFor(userId: string, next: string | null) {
+  const db = await getDb();
+  const [u] = await db.select().from(users).where(eq(users.id, userId));
+  if (isSafeNext(next)) return next!;
+  if (u.role === "admin") return "/admin";
+  if (u.role === "seller") return "/seller";
+  return "/account";
+}
+
+export async function login(fd: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const input = z.object({ email, password: z.string().min(1).max(200), next: z.string().optional() }).parse(Object.fromEntries(fd));
+    const meta = await requestMeta();
+    if (!rateLimit(`login:${meta.ip}:${input.email}`, 8, 15 * 60000) || !rateLimit(`login-ip:${meta.ip}`, 40, 15 * 60000)) throw new ActionError("too_many_attempts");
+    const db = await getDb();
+    const [user] = await db.select().from(users).where(eq(users.email, input.email));
+    const ok = await verifyPassword(input.password, user?.passwordHash);
+    if (!user || !ok) throw new ActionError("invalid_credentials");
+    if (user.status !== "active") {
+      const { t } = await getT();
+      throw new ActionError(t("This account is not active. Contact support.", "이용이 제한된 계정입니다. 고객센터에 문의하세요."));
+    }
+    await createSession(db, user.id);
+    if (user.role === "admin") await audit(db, { user, seller: null, sessionId: "" }, "auth.login");
+    return { ok: true, redirect: await destinationFor(user.id, input.next ?? null) };
+  });
+}
+
+export async function signup(fd: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const input = z.object({
+      name: z.string().trim().min(1).max(80),
+      email,
+      password: z.string(),
+      terms: z.literal("on"),
+      marketing: z.string().optional(),
+      next: z.string().optional(),
+    }).parse(Object.fromEntries(fd));
+    if (passwordProblems(input.password)) throw new ActionError("weak_password");
+    const meta = await requestMeta();
+    if (!rateLimit(`signup:${meta.ip}`, 10, 60 * 60000)) throw new ActionError("too_many_attempts");
+    const db = await getDb();
+    const { lang } = await getT();
+    const [exists] = await db.select({ id: users.id }).from(users).where(eq(users.email, input.email));
+    if (exists) throw new ActionError("email_taken");
+    const [user] = await db.insert(users).values({
+      name: input.name,
+      email: input.email,
+      passwordHash: await hashPassword(input.password),
+      role: "buyer",
+      locale: lang,
+      marketingOptIn: input.marketing === "on",
+    }).returning();
+    await sendVerification(user.id, user.email, user.name);
+    await createSession(db, user.id);
+    return { ok: true, redirect: isSafeNext(input.next) ? input.next : "/account" };
+  });
+}
+
+async function sendVerification(userId: string, to: string, name: string) {
+  const db = await getDb();
+  const token = randomToken();
+  await db.insert(authTokens).values({ userId, type: "verify_email", tokenHash: sha256(token), expiresAt: new Date(Date.now() + 3 * 86400000) });
+  const origin = await appOrigin();
+  await sendMail(db, to, "Verify your Ringo email", `Hi ${name},\n\nConfirm your email address to secure your account:\n${origin}/verify-email?token=${token}\n\nThis link expires in 3 days.`, "verify_email");
+}
+
+export async function resendVerification(): Promise<ActionResult> {
+  return run(async () => {
+    const viewer = await getViewer();
+    if (!viewer) throw new ActionError("forbidden");
+    if (!rateLimit(`verify:${viewer.user.id}`, 3, 60 * 60000)) throw new ActionError("too_many_attempts");
+    await sendVerification(viewer.user.id, viewer.user.email, viewer.user.name);
+    const { t } = await getT();
+    return { ok: true, message: t("Verification email sent.", "인증 메일을 보냈습니다.") };
+  });
+}
+
+export async function requestPasswordReset(fd: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { email: addr } = z.object({ email }).parse(Object.fromEntries(fd));
+    const meta = await requestMeta();
+    if (!rateLimit(`reset:${meta.ip}`, 5, 60 * 60000)) throw new ActionError("too_many_attempts");
+    const db = await getDb();
+    const [user] = await db.select().from(users).where(eq(users.email, addr));
+    if (user && user.status === "active") {
+      const token = randomToken();
+      await db.insert(authTokens).values({ userId: user.id, type: "reset_password", tokenHash: sha256(token), expiresAt: new Date(Date.now() + 3600000) });
+      const origin = await appOrigin();
+      await sendMail(db, user.email, "Reset your Ringo password", `Hi ${user.name},\n\nReset your password using this link (valid for 1 hour):\n${origin}/reset-password?token=${token}\n\nIf you did not request this, you can ignore this email.`, "reset_password");
+    }
+    const { t } = await getT();
+    return { ok: true, message: t("If an account exists, we sent a reset link.", "가입된 이메일이라면 재설정 링크를 보냈습니다.") };
+  });
+}
+
+export async function resetPassword(fd: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const input = z.object({ token: z.string().min(10), password: z.string() }).parse(Object.fromEntries(fd));
+    if (passwordProblems(input.password)) throw new ActionError("weak_password");
+    const db = await getDb();
+    const [row] = await db.select().from(authTokens).where(and(eq(authTokens.tokenHash, sha256(input.token)), eq(authTokens.type, "reset_password"), isNull(authTokens.usedAt), gt(authTokens.expiresAt, new Date())));
+    if (!row) throw new ActionError("token_invalid");
+    await db.update(authTokens).set({ usedAt: new Date() }).where(eq(authTokens.id, row.id));
+    await db.update(users).set({ passwordHash: await hashPassword(input.password), updatedAt: new Date() }).where(eq(users.id, row.userId));
+    await destroyOtherSessions(row.userId);
+    await createSession(db, row.userId);
+    return { ok: true, redirect: await destinationFor(row.userId, null) };
+  });
+}
+
+export async function verifyEmailToken(token: string) {
+  const db = await getDb();
+  const [row] = await db.select().from(authTokens).where(and(eq(authTokens.tokenHash, sha256(token)), eq(authTokens.type, "verify_email"), isNull(authTokens.usedAt), gt(authTokens.expiresAt, new Date())));
+  if (!row) return false;
+  await db.update(authTokens).set({ usedAt: new Date() }).where(eq(authTokens.id, row.id));
+  await db.update(users).set({ emailVerifiedAt: new Date() }).where(eq(users.id, row.userId));
+  return true;
+}

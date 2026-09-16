@@ -1,0 +1,18 @@
+import { chromium } from '@playwright/test';
+const [,, path, secs = '20'] = process.argv;
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const page = await ctx.newPage();
+await page.goto('http://127.0.0.1:3031/login');
+await page.fill('input[name=email]', 'admin@ringo.local');
+await page.fill('input[name=password]', 'ringo1234!');
+await page.click('button[type=submit]');
+await page.waitForURL(u => !u.pathname.startsWith('/login'), { timeout: 60000 });
+let n = 0; const seen = {};
+page.on('request', r => { n++; const k = r.method() + ' ' + r.url().replace('http://127.0.0.1:3031', '').slice(0, 80); seen[k] = (seen[k] || 0) + 1; });
+page.on('pageerror', e => console.log('PAGEERROR', e.message.slice(0, 200)));
+await page.goto('http://127.0.0.1:3031' + path, { waitUntil: 'load', timeout: 120000 });
+await page.waitForTimeout(Number(secs) * 1000);
+console.log('requests', n);
+console.log(Object.entries(seen).sort((a, b) => b[1] - a[1]).slice(0, 10));
+await browser.close();

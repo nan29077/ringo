@@ -1,0 +1,12 @@
+import { chromium } from '@playwright/test';
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
+const ctx = await browser.newContext();
+const page = await ctx.newPage();
+await page.goto('http://127.0.0.1:3031/login');
+await page.fill('input[name=email]', process.argv[2] || 'admin@ringo.local');
+await page.fill('input[name=password]', 'ringo1234!');
+await page.click('button[type=submit]');
+await page.waitForURL(u => !u.pathname.startsWith('/login'), { timeout: 60000 });
+const c = (await ctx.cookies()).find(c => c.name.includes('ringo_session'));
+console.log(`${c.name}=${c.value}`);
+await browser.close();
