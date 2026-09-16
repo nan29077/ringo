@@ -37,11 +37,11 @@ $pnpmVersion = (Invoke-Pnpm -PnpmArgs @("--version") | Select-Object -Last 1).To
 Write-Host "Node.js $nodeVersion / pnpm $pnpmVersion"
 
 if ((Test-Path -LiteralPath "node_modules") -and -not (Test-Path -LiteralPath "node_modules\@electric-sql\pglite")) {
-  Write-Host "이전 버전(Codex Sites)의 node_modules를 정리하고 다시 설치합니다." -ForegroundColor Yellow
-  cmd /c rmdir /s /q node_modules
-  if (Test-Path -LiteralPath "node_modules") {
-    throw "node_modules 폴더를 지우지 못했습니다. 실행 중인 미리보기 창이나 편집기를 닫고 다시 시도하세요."
-  }
+  # 이전 버전의 node_modules는 삭제에 오래 걸리거나 멈출 수 있어, 이름만 바꿔 치워두고 바로 새로 설치합니다.
+  $oldName = "node_modules_old_" + (Get-Date -Format "yyyyMMddHHmmss")
+  Write-Host "이전 버전의 node_modules를 $oldName 으로 옮기고 새로 설치합니다." -ForegroundColor Yellow
+  Rename-Item -LiteralPath "node_modules" -NewName $oldName
+  Write-Host "(옮겨둔 $oldName 폴더는 나중에 직접 지워도 됩니다.)"
 }
 
 Invoke-Pnpm -PnpmArgs @("install", "--frozen-lockfile")
