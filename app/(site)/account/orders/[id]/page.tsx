@@ -106,6 +106,9 @@ export default async function OrderDetail({ params, searchParams }: { params: Pr
       {justPaid && o.status === "pending_payment" && (
         <div className="sf-notice sf-notice-info mb-5" role="status"><Clock aria-hidden />{t("We’re waiting for the payment provider to confirm your payment. Refresh this page in a moment.", "결제사의 결제 확인을 기다리고 있습니다. 잠시 후 새로고침해 주세요.")}</div>
       )}
+      {one(sp, "expired") === "1" && o.status === "expired" && (
+        <div className="sf-notice sf-notice-warn mb-5" role="status"><Clock aria-hidden />{t("The payment window for this order has passed, so it was cancelled. Nothing was charged — you can order the product again.", "결제 가능 시간이 지나 주문이 취소되었습니다. 결제된 금액은 없으며, 상품을 다시 주문할 수 있습니다.")}</div>
+      )}
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="grid min-w-0 gap-5">

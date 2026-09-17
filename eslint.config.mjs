@@ -22,6 +22,8 @@ const eslintConfig = defineConfig([
       "react-hooks/purity": "off",
       // Covers and banners are served from our own /media route (local disk or S3); next/image is optional.
       "@next/next/no-img-element": "off",
+      // An underscore marks a parameter or catch binding kept for its signature but intentionally unused.
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^e$|^_" }],
     },
   },
   {

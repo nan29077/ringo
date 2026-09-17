@@ -115,7 +115,8 @@ export const categories = pgTable("categories", {
 
 export type DeliveryType = "download" | "course" | "service" | "collection";
 export type ProductStatus = "draft" | "pending_review" | "published" | "rejected" | "suspended" | "archived";
-export type Lesson = { title: string; assetId?: string | null; minutes?: number | null; preview?: boolean };
+/** Course lesson. Content is a video URL (YouTube / Vimeo / direct file), an uploaded asset, and/or text. */
+export type Lesson = { title: string; assetId?: string | null; minutes?: number | null; preview?: boolean; videoUrl?: string | null; body?: string | null };
 
 export const products = pgTable(
   "products",

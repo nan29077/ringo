@@ -58,7 +58,14 @@ export async function toggleNoticeFlag(noticeId: string, flag: "pinned" | "publi
     await db.update(s.notices).set({ [which]: value, updatedAt: new Date() }).where(eq(s.notices.id, n.id));
     await audit(db, viewer, `notice.${which}`, "notice", n.id, { value });
     refresh();
-    return { ok: true };
+    const { t } = await getT("ko");
+    return {
+      ok: true,
+      message:
+        which === "pinned"
+          ? value ? t("Pinned to the top.", "상단에 고정했습니다.") : t("Unpinned.", "상단 고정을 해제했습니다.")
+          : value ? t("Notice published.", "공지를 게시했습니다.") : t("Notice unpublished.", "공지 게시를 중단했습니다."),
+    };
   }, "ko");
 }
 

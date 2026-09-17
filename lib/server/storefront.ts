@@ -44,13 +44,17 @@ export type CardProduct = {
   ratingAvg: number | null; featured: boolean; salesCount: number; sellerName: string; sellerSlug: string; sellerId: string;
 };
 
+// Postgres sorts NULLs first on DESC: unrated / unpublished rows must not lead the list.
+const published = sql`${s.products.publishedAt} desc nulls last`;
+const rating = sql`${s.products.ratingAvg} desc nulls last`;
+
 function orderFor(sort: CatalogSort) {
   switch (sort) {
-    case "newest": return [desc(s.products.publishedAt), desc(s.products.createdAt)];
-    case "price-low": return [asc(s.products.priceCents), desc(s.products.publishedAt)];
-    case "price-high": return [desc(s.products.priceCents), desc(s.products.publishedAt)];
-    case "popular": return [desc(s.products.salesCount), desc(s.products.ratingAvg), desc(s.products.publishedAt)];
-    default: return [desc(s.products.featured), desc(s.products.salesCount), desc(s.products.publishedAt)];
+    case "newest": return [published, desc(s.products.createdAt)];
+    case "price-low": return [asc(s.products.priceCents), published];
+    case "price-high": return [desc(s.products.priceCents), published];
+    case "popular": return [desc(s.products.salesCount), rating, published];
+    default: return [desc(s.products.featured), desc(s.products.salesCount), published];
   }
 }
 

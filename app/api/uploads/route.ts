@@ -44,7 +44,9 @@ export async function POST(request: Request) {
     let orderId: string | null = null;
     if (kind === "product-asset") {
       productId = String(form.get("productId") || "");
-      await getProductForActor(db, viewer, productId);
+      const product = await getProductForActor(db, viewer, productId);
+      // A suspended product is under admin action: sellers cannot keep changing what buyers would receive.
+      if (product.status === "suspended" && viewer.user.role !== "admin") throw new Error("forbidden");
     }
     if (kind === "deliverable") {
       orderId = String(form.get("orderId") || "");

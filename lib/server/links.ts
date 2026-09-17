@@ -2,6 +2,7 @@ import "server-only";
 import { and, eq, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { z } from "zod";
+import { parseZonedInput } from "@/lib/time";
 import * as s from "@/db/schema";
 import type { DB } from "./db";
 import type { Viewer } from "./auth";
@@ -21,7 +22,15 @@ export const linkInput = z.object({
   destination: z.enum(["product", "checkout"]).default("product"),
   locale: z.enum(["en", "ko"]).default("en"),
   couponCode: z.string().trim().max(40).optional().transform((v) => (v ? v.toUpperCase() : null)),
-  expiresAt: z.string().optional().transform((v) => (v ? new Date(v) : null)),
+  expiresAt: z.string().optional().transform((v, ctx) => {
+    if (!v) return null;
+    const d = parseZonedInput(v);
+    if (!d) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid date" });
+      return z.NEVER;
+    }
+    return d;
+  }),
   code: z.string().trim().max(40).regex(/^[a-zA-Z0-9-]*$/).optional(),
 });
 
@@ -31,15 +40,19 @@ export async function saveLink(db: DB, viewer: Viewer, raw: Record<string, unkno
   if (!product) throw new CommerceError("not_found");
   const admin = viewer.user.role === "admin";
   if (!admin && viewer.seller?.id !== product.sellerId) throw new CommerceError("forbidden");
-  if (input.expiresAt && (Number.isNaN(input.expiresAt.getTime()) || input.expiresAt.getTime() < Date.now())) throw new CommerceError("invalid_state", "expiry");
+  const existing = linkId ? (await db.select().from(s.deepLinks).where(eq(s.deepLinks.id, linkId)))[0] : undefined;
+  if (linkId && (!existing || (!admin && existing.sellerId !== viewer.seller?.id))) throw new CommerceError("not_found");
+  // A past expiry is only rejected when it is being set now; keeping an already-expired date lets the other fields be edited.
+  const minute = (d: Date | null | undefined) => (d ? Math.floor(d.getTime() / 60000) : null);
+  // The form renders minutes, so a stored value with seconds still counts as unchanged.
+  const expiryUnchanged = !!existing && minute(existing.expiresAt) === minute(input.expiresAt);
+  if (input.expiresAt && input.expiresAt.getTime() < Date.now() && !expiryUnchanged) throw new CommerceError("expiry_past");
   if (input.couponCode) {
     const [c] = await db.select().from(s.coupons).where(eq(s.coupons.code, input.couponCode));
     if (!c || (c.sellerId && c.sellerId !== product.sellerId)) throw new CommerceError("coupon_not_applicable");
   }
   const values = { productId: product.id, sellerId: product.sellerId, name: input.name, source: input.source, medium: input.medium || "link", campaign: input.campaign, destination: input.destination, locale: input.locale, couponCode: input.couponCode, expiresAt: input.expiresAt, updatedAt: new Date() };
   if (linkId) {
-    const [link] = await db.select().from(s.deepLinks).where(eq(s.deepLinks.id, linkId));
-    if (!link || (!admin && link.sellerId !== viewer.seller?.id)) throw new CommerceError("not_found");
     const [row] = await db.update(s.deepLinks).set(values).where(eq(s.deepLinks.id, linkId)).returning();
     return row;
   }

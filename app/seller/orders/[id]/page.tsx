@@ -10,7 +10,7 @@ import { getSettings } from "@/lib/server/settings";
 import { holdReasons, isUuid } from "@/lib/server/seller-center";
 import { mediaUrl } from "@/lib/server/storage";
 import { bytes, formatDate, formatMoney } from "@/lib/i18n";
-import { deliveryType, fulfillmentStatus, orderStatus, refundStatus } from "@/lib/status";
+import { deliveryType, fulfillmentStatus, label, orderEventType, orderStatus, refundStatus } from "@/lib/status";
 import { PageHeader, Panel, DetailList, Notice, DataTable, EmptyState, Badge } from "@/components/console/ui";
 import { StatusBadge } from "@/components/console/status-badge";
 import { ActionButton, ActionForm } from "@/components/common/action-form";
@@ -44,7 +44,7 @@ export default async function SellerOrderDetail({ params }: { params: Promise<{ 
   const service = product.deliveryType === "service";
   const money = (c: number) => formatMoney(c, o.currency, lang);
   const overdue = o.status === "paid" && !!o.dueAt && o.dueAt.getTime() < Date.now() && (o.fulfillmentStatus === "pending" || o.fulfillmentStatus === "in_progress");
-  const hold = o.status === "paid" && !o.settlementId ? holdReasons(o, settings.commerce.refundWindowDays) : null;
+  const hold = o.status === "paid" && !o.settlementId && o.totalCents > 0 ? holdReasons(o, settings.commerce.refundWindowDays) : null;
   const holdLabel: Record<string, string> = {
     refund_requested: t("refund requested", "환불 요청 처리 전"),
     not_delivered: t("not delivered yet", "납품 전"),
@@ -161,7 +161,8 @@ export default async function SellerOrderDetail({ params }: { params: Promise<{ 
                   <div key={e.id}>
                     <i className={e.type === "refunded" || e.type.includes("fail") ? "!bg-[#e5484d]" : e.type === "paid" || e.type === "delivered" ? "!bg-[#16a36a]" : ""} />
                     <div>
-                      <div className="text-sm text-[#1c1d22]">{e.message ?? e.type}</div>
+                      <div className="text-sm text-[#1c1d22]">{label(orderEventType, e.type, lang)}</div>
+                      {e.message && <div className="text-xs text-[#6b6e78]">{e.message}</div>}
                       <div className="text-[11px] text-[#8a8d96]">{formatDate(e.createdAt, lang, true)}{e.actorRole ? ` · ${e.actorRole}` : ""}</div>
                     </div>
                   </div>
@@ -182,7 +183,7 @@ export default async function SellerOrderDetail({ params }: { params: Promise<{ 
                 [t("Seller net", "판매자 정산액"), <b key="n" className="text-[#16794a]">{money(o.sellerNetCents)}</b>],
                 ...(o.refundedCents ? [[t("Refunded", "환불 금액"), `${money(o.refundedCents)} · ${formatDate(o.refundedAt, lang)}`] as [string, string]] : []),
                 [t("Paid at", "결제일시"), formatDate(o.paidAt, lang, true)],
-                [t("Settlement", "정산"), settlement ? <Link key="s" href={`/seller/settlements/${settlement.id}`} className="text-[#2f4ac2] hover:underline">{formatDate(settlement.createdAt, lang)}</Link> : hold ? (hold.reasons.length ? t(`Holding: ${hold.reasons.map((r) => holdLabel[r]).join(", ")}`, `보류: ${hold.reasons.map((r) => holdLabel[r]).join(", ")}`) : t("Included in the next payout", "다음 정산에 포함")) : "—"],
+                [t("Settlement", "정산"), settlement ? <Link key="s" href={`/seller/settlements/${settlement.id}`} className="text-[#2f4ac2] hover:underline">{formatDate(settlement.createdAt, lang)}</Link> : o.status === "paid" && o.totalCents === 0 ? t("Free order · nothing to settle", "무료 주문 · 정산 대상 아님") : hold ? (hold.reasons.length ? t(`Holding: ${hold.reasons.map((r) => holdLabel[r]).join(", ")}`, `보류: ${hold.reasons.map((r) => holdLabel[r]).join(", ")}`) : t("Included in the next payout", "다음 정산에 포함")) : "—"],
               ]}
             />
             {o.refundStatus === "rejected" && o.refundRejectReason && <div className="mt-4"><Notice>{t("Refund rejected", "환불 거절 사유")}: {o.refundRejectReason}</Notice></div>}

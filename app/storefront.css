@@ -192,3 +192,36 @@ form[data-busy] .sf-busy-btn{opacity:.75;cursor:progress}
 
 html[lang=ko] .rh-slide-title{font-size:clamp(34px,3.8vw,54px);line-height:1.22;letter-spacing:-.055em;word-break:keep-all}
 html[lang=ko] .rh-slide-title em{font-family:inherit;font-style:normal;font-weight:600;letter-spacing:-.055em}
+
+/* Mobile menu (site header): hamburger shown only when the main nav is hidden (≤800px). */
+.site-menu{display:none;position:relative}
+.site-menu>summary{list-style:none;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:7px;border:1px solid #dcded7;background:#fff;color:#252821;cursor:pointer}
+.site-menu>summary::-webkit-details-marker{display:none}
+.site-menu[open]>summary{background:#f3f3f0}
+.site-menu>nav{position:absolute;right:0;top:calc(100% + 8px);z-index:60;min-width:220px;display:grid;gap:2px;padding:8px;background:#fff;border:1px solid #e3e4df;border-radius:12px;box-shadow:0 14px 40px rgba(20,22,18,.14)}
+.site-menu>nav a{display:block;padding:10px 12px;border-radius:8px;font-size:14px;color:#252821}
+.site-menu>nav a:hover{background:#f3f3f0;color:#ed4b2e}
+.site-menu>nav hr{border:0;border-top:1px solid #ecede8;margin:6px 0}
+@media(max-width:800px){.site-menu{display:block}}
+/* Account pages never scroll sideways on phones: long values wrap and wide blocks scroll inside themselves.
+   Grid and flex items default to min-width:auto, which lets the scrollable nav and long text push the page wider. */
+.sf-account{min-width:0}
+.sf-account>*{min-width:0;max-width:100%}
+.sf-account-nav{min-width:0;max-width:100%}
+.sf-account section,.sf-account ul,.sf-account ol,.sf-account ul>li,.sf-account ol>li{min-width:0}
+.sf-account pre,.sf-account code{white-space:pre-wrap;word-break:break-word}
+.sf-account .sf-row>*{min-width:0}
+.sf-account .sf-row p,.sf-account .sf-row span,.sf-account .sf-row a,.sf-account .sf-row strong{overflow-wrap:anywhere}
+
+/* Lesson content: embedded video, uploaded media and notes (course preview + library player). */
+.sf-lesson{border-top:1px solid #efefeb;padding:0 20px 16px}
+.sf-lesson>summary{list-style:none;cursor:pointer;padding:10px 0;font-size:13px;font-weight:600;color:#c9472c}
+.sf-lesson>summary::-webkit-details-marker{display:none}
+.sf-lesson>summary::before{content:"▸ ";display:inline-block;transition:transform .15s}
+.sf-lesson[open]>summary::before{content:"▾ "}
+.sf-lesson-player{display:grid;gap:14px;max-width:760px}
+.sf-video{position:relative;width:100%;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#111}
+.sf-video>iframe,.sf-video>video{position:absolute;inset:0;width:100%;height:100%;border:0}
+.sf-lesson-notes{font-size:14px;line-height:1.7;color:#3b3f38}
+.sf-lesson-notes p{margin:0 0 10px;overflow-wrap:anywhere}
+.sf-lessons>li.\!block .sf-lesson{margin:0 -18px -12px;padding-left:18px;padding-right:18px}

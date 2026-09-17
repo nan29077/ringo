@@ -192,6 +192,14 @@ export default async function AdminMemberDetail({ params }: { params: Promise<{ 
           )}
 
           <Panel title={t("Account status", "계정 상태")}>
+            {seller && seller.status === "active" && (
+              <div className="mb-3">
+                <Notice tone="warn">
+                  {t("Suspending the account does not close the store: the products stay on sale. Suspend the store in seller management too.", "계정을 정지해도 스토어는 닫히지 않습니다. 상품은 계속 판매되므로 판매자 관리에서 스토어도 함께 정지하세요.")}{" "}
+                  <Link href={`/admin/sellers/${seller.id}`} className="font-semibold underline">{t("Open seller management", "판매자 관리 열기")}</Link>
+                </Notice>
+              </div>
+            )}
             {self ? (
               <Notice>{t("You cannot suspend your own account.", "본인 계정은 정지할 수 없습니다.")}</Notice>
             ) : user.status === "active" ? (

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Heart, Library, User } from "lucide-react";
+import { ArrowUpRight, Heart, Library, Menu, User } from "lucide-react";
 import { getViewer } from "@/lib/server/auth";
 import { getT } from "@/lib/server/i18n-server";
 import { LanguageToggle } from "@/components/common/language-toggle";
@@ -21,6 +21,28 @@ export async function SiteHeader() {
           <Link href="/sell" className="flex items-center gap-1 text-sm text-[#555751] hover:text-[#ed4b2e]">{t("Sell on Ringo", "링고에서 판매하기")}<ArrowUpRight size={14} aria-hidden /></Link>
         </nav>
         <div className="header-actions">
+          <details className="site-menu">
+            <summary aria-label={t("Menu", "메뉴")} title={t("Menu", "메뉴")}><Menu size={20} aria-hidden /></summary>
+            <nav aria-label={t("Mobile menu", "모바일 메뉴")}>
+              <Link href="/#catalog">{t("Explore", "둘러보기")}</Link>
+              <Link href="/?category=courses#catalog">{t("Courses", "강의")}</Link>
+              <Link href="/?category=ebooks#catalog">{t("eBooks", "전자책")}</Link>
+              <Link href="/?category=design#catalog">{t("Design", "디자인")}</Link>
+              <Link href="/sell">{t("Sell on Ringo", "링고에서 판매하기")}</Link>
+              {viewer && (
+                <>
+                  <hr />
+                  <Link href="/account/library">{t("Library", "라이브러리")}</Link>
+                  <Link href="/account/wishlist">{t("Wishlist", "관심 상품")}</Link>
+                  <Link href="/account/orders">{t("Orders", "주문 내역")}</Link>
+                  {workspace && <Link href={workspace.href}>{workspace.label}</Link>}
+                </>
+              )}
+              <hr />
+              <Link href="/notices">{t("Notices", "공지사항")}</Link>
+              <Link href="/account/inquiries">{t("Help & support", "고객센터")}</Link>
+            </nav>
+          </details>
           <LanguageToggle className="lang-button" />
           {viewer ? (
             <>

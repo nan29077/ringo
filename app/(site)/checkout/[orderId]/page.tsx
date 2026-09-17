@@ -38,6 +38,8 @@ export default async function ResumeCheckout({ params, searchParams }: { params:
   const options = paymentOptions(settings.payments.enabledProviders, t);
   const [lastPayment] = await db.select().from(s.payments).where(eq(s.payments.orderId, order.id)).orderBy(desc(s.payments.createdAt)).limit(1);
   const expiresAt = new Date(order.createdAt.getTime() + settings.commerce.pendingPaymentMinutes * 60000);
+  // Past the window the order is already gone; send the buyer to the order page instead of a dead payment form.
+  if (expiresAt.getTime() <= Date.now()) redirect(`/account/orders/${order.id}?expired=1`);
   const money = (c: number) => formatMoney(c, order.currency, lang);
   const cancelled = one(sp, "cancelled") === "1";
   const declined = !cancelled && lastPayment && (lastPayment.status === "failed" || lastPayment.status === "cancelled");

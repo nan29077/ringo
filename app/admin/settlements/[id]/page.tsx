@@ -7,7 +7,8 @@ import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
 import { isUuid } from "@/lib/server/seller-center";
 import { formatDate, formatMoney } from "@/lib/i18n";
-import { settlementStatus } from "@/lib/status";
+import { orderStatus, settlementStatus } from "@/lib/status";
+import { isAdjustmentSettlement } from "@/lib/server/commerce";
 import { PageHeader, Panel, DataTable, EmptyState, DetailList, StatCard, Notice } from "@/components/console/ui";
 import { StatusBadge } from "@/components/console/status-badge";
 import { ActionButton, ActionForm } from "@/components/common/action-form";
@@ -24,10 +25,13 @@ export default async function AdminSettlementDetail({ params }: { params: Promis
   const [row] = await db.select({ st: s.settlements, x: s.sellers, creator: s.users.email }).from(s.settlements).innerJoin(s.sellers, eq(s.sellers.id, s.settlements.sellerId)).leftJoin(s.users, eq(s.users.id, s.settlements.createdBy)).where(eq(s.settlements.id, id));
   if (!row) notFound();
   const { st, x, creator } = row;
-  const [orders, history] = await Promise.all([
+  const [orders, history, deductions] = await Promise.all([
     db.select().from(s.orders).where(eq(s.orders.settlementId, id)).orderBy(asc(s.orders.paidAt)),
     db.select().from(s.auditLogs).where(and(eq(s.auditLogs.targetType, "settlement"), eq(s.auditLogs.targetId, id))).orderBy(desc(s.auditLogs.createdAt)),
+    db.select().from(s.settlements).where(eq(s.settlements.reference, `merged:${id}`)).orderBy(asc(s.settlements.createdAt)),
   ]);
+  const adjustment = isAdjustmentSettlement(st);
+  const refundedAfter = orders.filter((o) => o.status === "refunded");
   const m = (c: number) => formatMoney(c, st.currency, lang);
   const title = `${formatDate(st.periodStart, lang)} ~ ${formatDate(st.periodEnd, lang)}`;
   const noAccount = !x.payoutMethod || !x.payoutAccountNumber;
@@ -46,23 +50,26 @@ export default async function AdminSettlementDetail({ params }: { params: Promis
         actions={
           <>
             <StatusBadge map={settlementStatus} value={st.status} lang={lang} />
-            {st.status === "pending" && <ActionButton variant="outline" action={cancelPayoutBatch.bind(null, st.id)} confirm={t("Cancel this settlement? Its orders return to the unsettled pool.", "이 정산서를 취소할까요? 포함된 주문은 미정산 상태로 돌아갑니다.")}>{t("Cancel settlement", "정산서 취소")}</ActionButton>}
+            {st.status === "pending" && <ActionButton variant="outline" action={cancelPayoutBatch.bind(null, st.id)} confirm={adjustment ? t("Cancel this deduction? The refunded amount will no longer be deducted from the next payout.", "이 차감을 취소할까요? 환불 금액이 다음 정산에서 차감되지 않습니다.") : t("Cancel this settlement? Its orders return to the unsettled pool.", "이 정산서를 취소할까요? 포함된 주문은 미정산 상태로 돌아갑니다.")}>{adjustment ? t("Cancel deduction", "차감 취소") : t("Cancel settlement", "정산서 취소")}</ActionButton>}
           </>
         }
       />
+      {adjustment && <div className="mb-4"><Notice tone="warn">{t("Refund deduction: this order was refunded after its payout was sent. The amount is deducted automatically from the seller's next payout batch.", "환불 차감 건입니다. 지급 완료된 주문이 환불되어, 이 금액은 판매자의 다음 정산서에서 자동으로 차감됩니다.")}</Notice></div>}
+      {!adjustment && refundedAfter.length > 0 && <div className="mb-4"><Notice tone="warn">{t(`${refundedAfter.length} order(s) in this batch were refunded after payout. The deduction is recorded as a separate settlement row and applied to the next payout.`, `이 정산서의 주문 ${refundedAfter.length}건이 지급 이후 환불되었습니다. 차감액은 별도 정산 항목으로 기록되어 다음 정산에서 적용됩니다.`)}</Notice></div>}
       {st.status === "cancelled" && <div className="mb-4"><Notice>{t("This settlement was cancelled. Its orders were released back to the unsettled pool.", "취소된 정산서입니다. 포함되었던 주문은 미정산 상태로 돌아갔습니다.")}</Notice></div>}
       <div className="grid gap-3 sm:grid-cols-3">
-        <StatCard label={t("Gross sales", "판매액")} value={m(st.grossCents)} hint={t(`${st.orderCount} orders`, `주문 ${st.orderCount}건`)} />
-        <StatCard label={t("Commission", "수수료")} value={`-${m(st.commissionCents)}`} />
+        <StatCard label={adjustment ? t("Refunded sale", "환불된 판매액") : t("Gross sales", "판매액")} value={m(st.grossCents)} hint={adjustment ? t("Deducted from the next payout", "다음 정산에서 차감") : t(`${st.orderCount} orders`, `주문 ${st.orderCount}건`)} />
+        <StatCard label={t("Commission", "수수료")} value={m(-st.commissionCents)} />
         <StatCard label={t("Net payout", "지급액")} value={m(st.netCents)} tone="good" />
       </div>
       <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_360px]">
         <div className="grid min-w-0 content-start gap-4">
           <Panel title={<>{t("Included orders", "포함된 주문")} <span className="ml-1 text-[#8a8d96]">{orders.length}</span></>} bodyClass="p-0">
-            <DataTable head={[t("Order", "주문번호"), t("Buyer", "구매자"), t("Product", "상품"), t("Paid", "결제일"), t("Total", "결제금액"), t("Commission", "수수료"), t("Net", "정산액")]} empty={<EmptyState title={st.status === "cancelled" ? t("Orders were released when the settlement was cancelled.", "정산서 취소로 주문이 해제되었습니다.") : t("No orders", "주문이 없습니다")} />}>
+            <DataTable head={[t("Order", "주문번호"), t("Status", "상태"), t("Buyer", "구매자"), t("Product", "상품"), t("Paid", "결제일"), t("Total", "결제금액"), t("Commission", "수수료"), t("Net", "정산액")]} empty={<EmptyState title={st.status === "cancelled" ? t("Orders were released when the settlement was cancelled.", "정산서 취소로 주문이 해제되었습니다.") : t("No orders", "주문이 없습니다")} />}>
               {orders.map((o) => (
                 <tr key={o.id}>
                   <td className="whitespace-nowrap"><Link href={`/admin/orders/${o.id}`} className="font-semibold text-[#2f4ac2] hover:underline">{o.orderNo}</Link></td>
+                  <td><StatusBadge map={orderStatus} value={o.status} lang={lang} /></td>
                   <td className="text-xs">{o.buyerName}</td>
                   <td className="max-w-[240px] truncate">{o.productTitle}</td>
                   <td className="whitespace-nowrap text-xs">{formatDate(o.paidAt, lang)}</td>
@@ -73,6 +80,19 @@ export default async function AdminSettlementDetail({ params }: { params: Promis
               ))}
             </DataTable>
           </Panel>
+          {deductions.length > 0 && (
+            <Panel title={t("Refund deductions applied", "차감된 환불")} description={t("Refunds of earlier payouts that were deducted from this batch.", "이전 정산에서 지급된 주문의 환불액으로, 이 정산서에서 차감되었습니다.")} bodyClass="p-0">
+              <DataTable head={[t("Recorded", "기록일"), t("Memo", "내용"), t("Deducted", "차감액")]}>
+                {deductions.map((d) => (
+                  <tr key={d.id}>
+                    <td className="whitespace-nowrap text-xs"><Link href={`/admin/settlements/${d.id}`} className="text-[#2f4ac2] hover:underline">{formatDate(d.createdAt, lang, true)}</Link></td>
+                    <td className="text-xs">{d.memo ?? "—"}</td>
+                    <td className="whitespace-nowrap font-medium text-[#b42318]">{m(d.netCents)}</td>
+                  </tr>
+                ))}
+              </DataTable>
+            </Panel>
+          )}
           <Panel title={t("Status history", "처리 이력")}>
             <div className="rc-timeline">
               {history.map((h) => (
@@ -91,7 +111,7 @@ export default async function AdminSettlementDetail({ params }: { params: Promis
           </Panel>
         </div>
         <div className="grid min-w-0 content-start gap-4">
-          {st.status === "pending" && (
+          {st.status === "pending" && !adjustment && (
             <Panel title={t("Record transfer", "송금 완료 처리")} className="!border-[#ffe2b3]">
               <ActionForm action={markPayoutPaid} className="grid gap-2" confirm={t(`Mark ${m(st.netCents)} as transferred to ${x.displayName}?`, `${x.displayName}에게 ${m(st.netCents)} 송금을 완료로 처리할까요?`)}>
                 <input type="hidden" name="settlementId" value={st.id} />

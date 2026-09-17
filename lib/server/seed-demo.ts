@@ -4,6 +4,9 @@ import * as s from "@/db/schema";
 import type { DB } from "./db";
 import { hashPassword } from "./password";
 import { products as sampleProducts } from "@/lib/ringo/data";
+import { storage } from "./storage";
+import { recomputeRating } from "./storefront";
+import { randomUUID } from "node:crypto";
 
 export const DEMO_PASSWORD = "ringo1234!";
 export const demoAccounts = {
@@ -14,6 +17,46 @@ export const demoAccounts = {
 };
 
 const day = 86400000;
+
+const reviewBodies = [
+  "Exactly what I needed — clear, practical and easy to apply the same week.",
+  "차분하게 정리된 구성이 좋았습니다. 바로 적용해 볼 수 있었어요.",
+  "Well made and thoughtfully put together. Worth the price.",
+  "설명이 친절해서 처음 시작하는 사람에게도 어렵지 않습니다.",
+  "Good value. I keep coming back to the templates.",
+];
+
+/** Minimal one-page PDF so demo download products actually deliver a file. */
+function demoPdf(title: string, lines: string[]) {
+  const esc = (v: string) => v.replace(/[()\\]/g, (m) => "\\" + m).replace(/[^\x20-\x7e]/g, "?");
+  const text = [`BT /F1 18 Tf 60 760 Td (${esc(title)}) Tj ET`, ...lines.map((l, i) => `BT /F1 11 Tf 60 ${720 - i * 18} Td (${esc(l)}) Tj ET`)].join("\n");
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+    `<< /Length ${text.length} >>\nstream\n${text}\nendstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets: number[] = [];
+  objects.forEach((body, i) => {
+    offsets.push(pdf.length);
+    pdf += `${i + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n` + offsets.map((o) => String(o).padStart(10, "0") + " 00000 n \n").join("");
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return Buffer.from(pdf, "latin1");
+}
+
+/** Writes a demo file into storage and registers it on the product. */
+async function seedAsset(db: DB, productId: string, filename: string, title: string, lines: string[], sort = 0) {
+  const data = demoPdf(title, lines);
+  const key = `products/${productId}/${randomUUID()}.pdf`;
+  await (await storage()).put(key, data, "application/pdf");
+  const [row] = await db.insert(s.productAssets).values({ productId, storageKey: key, filename, contentType: "application/pdf", bytes: data.length, sort }).returning();
+  return row;
+}
 
 /** Local development sample data. Never runs in production unless RINGO_DEMO_SEED=true. */
 export async function seedDemoData(db: DB) {
@@ -58,16 +101,24 @@ export async function seedDemoData(db: DB) {
       featured: i < 4,
       coverKey: "preset:" + p.image,
       lessons: delivery === "course" ? [
-        { title: "Introduction / 시작하기", minutes: 8, preview: true },
-        { title: "Research & direction / 리서치와 방향", minutes: 18 },
-        { title: "Build the system / 시스템 만들기", minutes: 24 },
-        { title: "Launch checklist / 출시 체크리스트", minutes: 12 },
+        { title: "Introduction / 시작하기", minutes: 8, preview: true, body: "What this course covers, who it is for, and how to use the workbook.\n이 강의가 다루는 내용과 워크북 사용법을 소개합니다." },
+        { title: "Research & direction / 리서치와 방향", minutes: 18, body: "How to gather references, interview users and pick a direction you can defend.\n레퍼런스 수집, 사용자 인터뷰, 방향 정하기." },
+        { title: "Build the system / 시스템 만들기", minutes: 24, body: "Turning the direction into reusable components, tokens and templates.\n방향을 재사용 가능한 컴포넌트와 템플릿으로 만듭니다." },
+        { title: "Launch checklist / 출시 체크리스트", minutes: 12, body: "Everything to verify before you ship, and how to collect feedback afterwards.\n출시 전 점검 항목과 출시 후 피드백 수집 방법." },
       ] : [],
-      ratingAvg: Math.round(p.rating * 10),
+      ratingAvg: null, // set from the seeded reviews below
       publishedAt: new Date(now - (30 - i) * day),
       createdAt: new Date(now - (31 - i) * day),
     }).returning();
     idMap[p.id] = row.id;
+    // Published products must actually deliver something: a workbook PDF (and a second file for collections).
+    if (delivery === "download" || delivery === "collection" || delivery === "course") {
+      const asset = await seedAsset(db, row.id, `${p.slug}.pdf`, p.title, [p.details.slice(0, 90), "", "Ringo demo file — replace with the real product file."]);
+      if (delivery === "collection") await seedAsset(db, row.id, `${p.slug}-bonus.pdf`, `${p.title} — bonus`, ["Bonus material included with this collection."], 1);
+      if (delivery === "course") {
+        await db.update(s.products).set({ lessons: (row.lessons ?? []).map((l, li) => (li === 0 ? { ...l, assetId: asset.id } : l)) }).where(eq(s.products.id, row.id));
+      }
+    }
   }
   await db.insert(s.products).values({
     sellerId: ff.id, slug: "brand-voice-workbook", categoryId: "ebooks", deliveryType: "download",
@@ -111,6 +162,20 @@ export async function seedDemoData(db: DB) {
       { orderId: order.id, type: "paid", message: "Payment succeeded (test)", createdAt: at },
     ]);
     await db.update(s.products).set({ salesCount: product.salesCount + 1 }).where(eq(s.products.id, product.id));
+    // A buyer review per purchase, so the shown rating always matches real review rows.
+    if (!service && pid !== "p6") {
+      const sample = sampleProducts.find((x) => x.id === pid);
+      const rating = Math.max(1, Math.min(5, Math.round(sample?.rating ?? 5)));
+      await db.insert(s.productReviews).values({
+        productId: product.id,
+        userId: b.id,
+        orderId: order.id,
+        rating,
+        body: reviewBodies[ago % reviewBodies.length],
+        createdAt: new Date(at.getTime() + 2 * day),
+      });
+      await recomputeRating(db, product.id);
+    }
   }
 
   const [inq] = await db.insert(s.inquiries).values({ userId: buyer.id, sellerId: sn.id, productId: idMap.p2, subject: "Does the kit include Korean fonts?", category: "product" }).returning();

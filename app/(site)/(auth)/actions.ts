@@ -6,7 +6,7 @@ import { getDb } from "@/lib/server/db";
 import { createSession, destroyOtherSessions, getViewer, isSafeNext } from "@/lib/server/auth";
 import { hashPassword, passwordProblems, randomToken, sha256, verifyPassword } from "@/lib/server/password";
 import { ActionError, run, type ActionResult } from "@/lib/server/action";
-import { appOrigin, rateLimit, requestMeta } from "@/lib/server/request";
+import { appOrigin, rateLimit, rateLimitReset, requestMeta } from "@/lib/server/request";
 import { sendMail } from "@/lib/server/mail";
 import { getT } from "@/lib/server/i18n-server";
 import { audit } from "@/lib/server/audit";
@@ -43,6 +43,9 @@ export async function login(fd: FormData): Promise<ActionResult> {
       throw new ActionError(t("This account is not active. Contact support.", "이용이 제한된 계정입니다. 고객센터에 문의하세요."));
     }
     await createSession(db, user.id);
+    // A successful sign-in clears this account's failure counters. The IP-wide counter is deliberately kept:
+    // otherwise one valid account could reset it after every burst of guesses against other accounts.
+    rateLimitReset(`login-email:${input.email}`, `login:${ipKey}:${input.email}`);
     if (user.role === "admin") await audit(db, { user, seller: null, sessionId: "" }, "auth.login");
     return { ok: true, redirect: await destinationFor(user.id, input.next ?? null) };
   });
@@ -131,13 +134,21 @@ export async function resetPassword(fd: FormData): Promise<ActionResult> {
   });
 }
 
-export async function verifyEmailToken(token: string) {
+/** "verified" (just now), "already" (link already used — the address is confirmed) or "invalid". */
+export async function verifyEmailToken(token: string): Promise<"verified" | "already" | "invalid"> {
   const db = await getDb();
-  const [row] = await db.select().from(authTokens).where(and(eq(authTokens.tokenHash, sha256(token)), eq(authTokens.type, "verify_email"), isNull(authTokens.usedAt), gt(authTokens.expiresAt, new Date())));
-  if (!row) return false;
+  const hash = sha256(token);
+  const [row] = await db.select().from(authTokens).where(and(eq(authTokens.tokenHash, hash), eq(authTokens.type, "verify_email")));
+  if (!row) return "invalid";
+  if (row.usedAt) {
+    // Clicking the same link twice (mail clients prefetch links) is not an error.
+    const [u] = await db.select({ verified: users.emailVerifiedAt }).from(users).where(eq(users.id, row.userId));
+    return u?.verified ? "already" : "invalid";
+  }
+  if (row.expiresAt.getTime() <= Date.now()) return "invalid";
   await db.update(authTokens).set({ usedAt: new Date() }).where(eq(authTokens.id, row.id));
   await db.update(users).set({ emailVerifiedAt: new Date() }).where(eq(users.id, row.userId));
-  return true;
+  return "verified";
 }
 
 /** Test login button (development / RINGO_DEMO_LOGIN=true only). Signs in as a seeded demo account without a password. */

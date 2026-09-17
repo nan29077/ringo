@@ -9,6 +9,7 @@ import { holdReasons, sellerBalance } from "@/lib/server/seller-center";
 import { formatDate, formatMoney } from "@/lib/i18n";
 import { settlementStatus } from "@/lib/status";
 import { PageHeader, Panel, StatCard, DataTable, EmptyState, Badge, Notice } from "@/components/console/ui";
+import { isAdjustmentSettlement } from "@/lib/server/commerce";
 import { Pagination } from "@/components/console/filters";
 import { StatusBadge } from "@/components/console/status-badge";
 
@@ -42,7 +43,7 @@ export default async function SellerSettlements({ searchParams }: { searchParams
         <div className="mb-4"><Notice tone="warn">{t("No payout account registered. Payouts cannot be sent until you add one.", "정산 계좌가 등록되지 않아 지급할 수 없습니다.")} <Link href="/seller/settings/payout" className="font-semibold underline">{t("Register payout account", "정산 계좌 등록")}</Link></Notice></div>
       )}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label={t("Available for next payout", "다음 정산 가능 금액")} value={m(balance.available.cents)} hint={t(`${balance.available.count} orders`, `주문 ${balance.available.count}건`)} tone="good" />
+        <StatCard label={t("Available for next payout", "다음 정산 가능 금액")} value={m(balance.available.cents)} hint={balance.adjustments.count ? t(`${balance.available.count} orders · ${m(balance.adjustments.cents)} refund deduction`, `주문 ${balance.available.count}건 · 환불 차감 ${m(balance.adjustments.cents)}`) : t(`${balance.available.count} orders`, `주문 ${balance.available.count}건`)} tone="good" />
         <StatCard label={t("Holding", "정산 보류")} value={m(balance.holding.cents)} hint={t(`${balance.holding.count} orders in refund window or production`, `환불 기간·제작 중 주문 ${balance.holding.count}건`)} tone="warn" />
         <StatCard label={t("Awaiting transfer", "지급 대기")} value={m(balance.awaitingTransfer.cents)} hint={t(`${balance.awaitingTransfer.n} settlements`, `정산서 ${balance.awaitingTransfer.n}건`)} />
         <StatCard label={t("Paid out total", "누적 지급액")} value={m(balance.paidOut.cents)} hint={t(`${balance.paidOut.n} payouts`, `지급 ${balance.paidOut.n}건`)} tone="info" />
@@ -56,10 +57,10 @@ export default async function SellerSettlements({ searchParams }: { searchParams
         >
           {rows.map((x) => (
             <tr key={x.id}>
-              <td className="whitespace-nowrap">{formatDate(x.periodStart, lang)} ~ {formatDate(x.periodEnd, lang)}<div className="text-[11px] text-[#8a8d96]">{t("Created", "생성")} {formatDate(x.createdAt, lang)}</div></td>
+              <td className="whitespace-nowrap">{isAdjustmentSettlement(x) ? <Badge tone="red">{t("Refund deduction", "환불 차감")}</Badge> : <>{formatDate(x.periodStart, lang)} ~ {formatDate(x.periodEnd, lang)}</>}<div className="text-[11px] text-[#8a8d96]">{t("Created", "생성")} {formatDate(x.createdAt, lang)}</div></td>
               <td>{x.orderCount}</td>
               <td className="whitespace-nowrap">{m(x.grossCents, x.currency)}</td>
-              <td className="whitespace-nowrap text-[#6b6e78]">-{m(x.commissionCents, x.currency)}</td>
+              <td className="whitespace-nowrap text-[#6b6e78]">{m(-x.commissionCents, x.currency)}</td>
               <td className="whitespace-nowrap font-semibold">{m(x.netCents, x.currency)}</td>
               <td><StatusBadge map={settlementStatus} value={x.status} lang={lang} /></td>
               <td className="max-w-[160px] truncate text-xs">{x.reference ?? "—"}</td>

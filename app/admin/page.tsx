@@ -7,6 +7,7 @@ import { getT } from "@/lib/server/i18n-server";
 import { getSettings } from "@/lib/server/settings";
 import { dailySales, daysAgo, salesSummary } from "@/lib/server/analytics";
 import { formatDate, formatMoney } from "@/lib/i18n";
+import { startOfZonedDay } from "@/lib/time";
 import { orderStatus, refundStatus } from "@/lib/status";
 import { PageHeader, Panel, StatCard, DataTable, EmptyState } from "@/components/console/ui";
 import { StatusBadge } from "@/components/console/status-badge";
@@ -20,7 +21,7 @@ export default async function AdminDashboard() {
   const { t, lang } = await getT("ko");
   const settings = await getSettings(db);
   const cur = settings.site.currency;
-  const today = new Date(new Date().toDateString());
+  const today = startOfZonedDay();
   const n = async (q: Promise<{ v: number }[]>) => (await q)[0]?.v ?? 0;
 
   const [todaySum, monthSum, series, recent, top, members7, membersTotal, pendingProducts, pendingSellers, refundReq, overdue, openInq, pendingPayment, sellerCount] = await Promise.all([
@@ -35,7 +36,7 @@ export default async function AdminDashboard() {
       .innerJoin(s.sellers, eq(s.sellers.id, s.orders.sellerId))
       .where(and(eq(s.orders.status, "paid"), gte(s.orders.paidAt, daysAgo(30))))
       .groupBy(s.products.id, s.sellers.displayName)
-      .orderBy(sql`3 desc`)
+      .orderBy(sql`sum(${s.orders.totalCents}) desc`)
       .limit(5),
     n(db.select({ v: count() }).from(s.users).where(gte(s.users.createdAt, daysAgo(7)))),
     n(db.select({ v: count() }).from(s.users)),

@@ -15,7 +15,7 @@ export const metadata = { title: "Preferences" };
 export default async function AdminSettings() {
   await requireAdmin();
   const db = await getDb();
-  const { t, lang } = await getT("ko");
+  const { t } = await getT("ko");
   const [settings, rows] = await Promise.all([
     getSettings(db),
     db.select({ key: s.settings.key, updatedAt: s.settings.updatedAt, email: s.users.email }).from(s.settings).leftJoin(s.users, eq(s.users.id, s.settings.updatedBy)),
@@ -38,7 +38,7 @@ export default async function AdminSettings() {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label={t("Marketplace name", "쇼핑몰 이름")} required><input name="name" className="rc-input" required maxLength={60} defaultValue={site.name} /></Field>
               <Field label={t("Support email", "고객센터 이메일")} required><input name="supportEmail" type="email" className="rc-input" required maxLength={200} defaultValue={site.supportEmail} /></Field>
-              <Field label={t("Currency", "통화")} required hint={t("Applies to newly created products only. Existing products and orders keep their currency.", "새로 등록하는 상품에만 적용됩니다. 기존 상품과 주문의 통화는 바뀌지 않습니다.")}>
+              <Field label={t("Currency", "통화")} required hint={t("Ringo runs in a single currency. It can only be changed before any product or order exists.", "링고는 단일 통화로 운영됩니다. 상품이나 주문이 생기기 전에만 변경할 수 있습니다.")}>
                 <select name="currency" className="rc-select" defaultValue={site.currency}>
                   <option value="USD">USD · US Dollar</option>
                   <option value="PHP">PHP · Philippine Peso</option>

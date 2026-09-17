@@ -4,6 +4,8 @@ import { ActionForm } from "@/components/common/action-form";
 import { AuthCard, AuthInput, SubmitButton } from "../auth-card";
 import { requestPasswordReset } from "../actions";
 
+export const metadata = { title: "Reset password", robots: { index: false } };
+
 export default async function ForgotPasswordPage() {
   const { t } = await getT();
   return (

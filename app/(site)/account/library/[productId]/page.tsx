@@ -11,6 +11,7 @@ import { activeEntitlement, isUuid, pick } from "@/lib/server/storefront";
 import { bytes, formatDate } from "@/lib/i18n";
 import { deliveryType, label } from "@/lib/status";
 import { AccountHeader, Card } from "@/components/store/account-ui";
+import { LessonPlayer } from "@/components/store/lesson-player";
 import { LessonToggle } from "./lesson-toggle";
 
 export const metadata = { title: "Library item" };
@@ -72,18 +73,28 @@ export default async function LibraryItem({ params }: { params: Promise<{ produc
               {lessons.map((l, i) => {
                 const asset = l.assetId ? fileById.get(l.assetId) : undefined;
                 const isDone = doneSet.has(i);
+                const playable = !!(l.videoUrl || l.body || (asset && /^(video|audio)\//.test(asset.contentType)));
                 return (
-                  <li key={i} className={`sf-row ${i === nextLesson ? "bg-[#fffaf7]" : ""}`}>
-                    <LessonToggle productId={p.id} index={i} done={isDone} title={l.title} />
-                    <span className="w-6 text-sm text-[#9aa38c]" aria-hidden>{String(i + 1).padStart(2, "0")}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className={`font-medium ${isDone ? "text-[#7a7e73] line-through decoration-[#c9ccc0]" : "text-[#20211f]"}`}>{l.title}</p>
-                      <p className="flex flex-wrap items-center gap-2 text-[13px] text-[#6b7065]">
-                        {l.minutes ? <span className="inline-flex items-center gap-1"><Clock size={13} aria-hidden />{t(`${l.minutes} min`, `${l.minutes}분`)}</span> : null}
-                        {i === nextLesson && <span className="sf-pill sf-pill-brand">{t("Up next", "다음 강의")}</span>}
-                      </p>
+                  <li key={i} className={i === nextLesson ? "bg-[#fffaf7]" : ""}>
+                    <div className="sf-row">
+                      <LessonToggle productId={p.id} index={i} done={isDone} title={l.title} />
+                      <span className="w-6 text-sm text-[#9aa38c]" aria-hidden>{String(i + 1).padStart(2, "0")}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className={`font-medium ${isDone ? "text-[#7a7e73] line-through decoration-[#c9ccc0]" : "text-[#20211f]"}`}>{l.title}</p>
+                        <p className="flex flex-wrap items-center gap-2 text-[13px] text-[#6b7065]">
+                          {l.minutes ? <span className="inline-flex items-center gap-1"><Clock size={13} aria-hidden />{t(`${l.minutes} min`, `${l.minutes}분`)}</span> : null}
+                          {i === nextLesson && <span className="sf-pill sf-pill-brand">{t("Up next", "다음 강의")}</span>}
+                          {!playable && !asset && <span className="text-[#9aa38c]">{t("No content yet", "콘텐츠 준비 중")}</span>}
+                        </p>
+                      </div>
+                      {asset && <a href={`/api/download/asset/${asset.id}`} className="sf-btn sf-btn-outline sf-btn-sm" download><Download aria-hidden />{t("Lesson file", "강의 파일")}</a>}
                     </div>
-                    {asset && <a href={`/api/download/asset/${asset.id}`} className="sf-btn sf-btn-outline sf-btn-sm" download><Download aria-hidden />{t("Lesson file", "강의 파일")}</a>}
+                    {playable && (
+                      <details className="sf-lesson" open={i === nextLesson}>
+                        <summary>{t("Watch / read this lesson", "이 강의 보기")}</summary>
+                        <LessonPlayer lesson={l} asset={asset} title={l.title} />
+                      </details>
+                    )}
                   </li>
                 );
               })}

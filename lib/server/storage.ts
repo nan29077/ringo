@@ -13,7 +13,7 @@ export interface StorageDriver {
   get(key: string): Promise<StoredObject | null>;
   remove(key: string): Promise<void>;
   /** Short-lived direct URL (S3). Local driver returns null → stream through the app. */
-  signedUrl(key: string, filename: string, seconds: number): Promise<string | null>;
+  signedUrl(key: string, filename: string, seconds: number, opts?: { inline?: boolean; contentType?: string }): Promise<string | null>;
 }
 
 const localRoot = () => process.env.UPLOAD_DIR || path.join(/* turbopackIgnore: true */ process.cwd(), ".data", "uploads");
@@ -71,10 +71,12 @@ async function s3(): Promise<StorageDriver> {
     async remove(key) {
       await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
     },
-    async signedUrl(key, filename, seconds) {
+    async signedUrl(key, filename, seconds, opts = {}) {
       return getSignedUrl(client, new GetObjectCommand({
         Bucket: bucket, Key: key,
-        ResponseContentDisposition: `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        ResponseContentDisposition: `${opts.inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        // An inline response is rendered by the browser, so the type comes from our record, not from the object.
+        ...(opts.inline && opts.contentType ? { ResponseContentType: opts.contentType } : {}),
       }), { expiresIn: seconds });
     },
   };

@@ -1,7 +1,7 @@
 import "server-only";
-import { and, eq, inArray, isNull, lte, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, lt, lte, ne, sql } from "drizzle-orm";
 import * as s from "@/db/schema";
-import type { DB } from "./db";
+import type { DB, Tx } from "./db";
 import type { Viewer } from "./auth";
 import { getSettings } from "./settings";
 import { newOrderNo } from "./ids";
@@ -75,6 +75,11 @@ export async function createOrder(
   if (row.seller.userId === viewer.user.id) throw new CommerceError("own_product");
   const { product, seller } = row;
 
+  // Never take money for a product that cannot deliver anything (e.g. its last file was removed).
+  if (product.deliveryType === "download" || product.deliveryType === "collection") {
+    const [{ files }] = await db.select({ files: sql<number>`count(*)::int` }).from(s.productAssets).where(eq(s.productAssets.productId, product.id));
+    if (!files) throw new CommerceError("product_unavailable");
+  }
   if (product.deliveryType !== "service") {
     const owned = await db
       .select({ id: s.entitlements.id })
@@ -143,7 +148,7 @@ export async function createOrder(
   await addOrderEvent(db, order.id, "created", `Order created · ${formatMoney(totalCents, order.currency)}`, viewer);
   if (totalCents === 0) {
     const [payment] = await db.insert(s.payments).values({ orderId: order.id, provider: "free", status: "pending", amountCents: 0, currency: order.currency }).returning();
-    await confirmPayment(db, payment.id, { providerRef: "free" });
+    return confirmPayment(db, payment.id, { providerRef: "free" });
   }
   return order;
 }
@@ -153,6 +158,13 @@ export async function startPayment(db: DB, viewer: Viewer, orderId: string, prov
   if (!order || order.buyerId !== viewer.user.id) throw new CommerceError("not_found");
   if (order.status !== "pending_payment") throw new CommerceError("order_not_payable");
   const settings = await getSettings(db);
+  // The payment window is enforced here too, not only by the scheduled cleanup.
+  if (order.createdAt.getTime() + settings.commerce.pendingPaymentMinutes * 60000 <= Date.now()) {
+    await db.update(s.orders).set({ status: "expired", updatedAt: new Date() }).where(and(eq(s.orders.id, order.id), eq(s.orders.status, "pending_payment")));
+    await db.update(s.payments).set({ status: "cancelled", failureReason: "expired", updatedAt: new Date() }).where(and(eq(s.payments.orderId, order.id), eq(s.payments.status, "pending")));
+    await addOrderEvent(db, order.id, "expired", "Payment window elapsed", viewer);
+    throw new CommerceError("order_expired");
+  }
   const provider = getProvider(providerId);
   if (!provider || !provider.isAvailable() || !settings.payments.enabledProviders.includes(provider.id)) throw new CommerceError("provider_unavailable");
   const [payment] = await db
@@ -331,17 +343,101 @@ export async function refundOrder(db: DB, viewer: Viewer, orderId: string, reaso
   }
   const now = new Date();
   await db.transaction(async (tx) => {
+    // The status is part of the WHERE so a double submit cannot refund, or deduct from the seller, twice.
+    const claimed = await tx
+      .update(s.orders)
+      .set({ status: "refunded", refundStatus: "refunded", refundedCents: order.totalCents, refundedAt: now, updatedAt: now })
+      .where(and(eq(s.orders.id, orderId), eq(s.orders.status, "paid")))
+      .returning({ id: s.orders.id });
+    if (!claimed.length) throw new CommerceError("invalid_state");
     await tx.insert(s.refunds).values({ orderId, paymentId: payment?.id, amountCents: order.totalCents, reason: (opts.manual ? "[manual] " : "") + reason, status: "succeeded", providerRef, processedBy: viewer.user.id });
     if (payment) await tx.update(s.payments).set({ status: "refunded", updatedAt: now }).where(eq(s.payments.id, payment.id));
-    await tx.update(s.orders).set({ status: "refunded", refundStatus: "refunded", refundedCents: order.totalCents, refundedAt: now, updatedAt: now }).where(eq(s.orders.id, orderId));
     await tx.update(s.entitlements).set({ status: "revoked", revokedAt: now }).where(eq(s.entitlements.orderId, orderId));
     await tx.update(s.products).set({ salesCount: sql`greatest(${s.products.salesCount} - 1, 0)` }).where(eq(s.products.id, order.productId));
     await tx.insert(s.orderEvents).values({ orderId, type: "refunded", message: `Refunded ${formatMoney(order.totalCents, order.currency)}${opts.manual ? " (manual)" : ""}: ${reason.slice(0, 200)}`, actorId: viewer.user.id, actorRole: viewer.user.role });
+    await adjustSettlementForRefund(tx, order, viewer, now);
   });
   await sendMail(db, order.buyerEmail, `Refund completed for ${order.orderNo}`, `We refunded ${formatMoney(order.totalCents, order.currency)} for "${order.productTitle}". Access to the content has been removed.`, "refund_completed");
 }
 
+/**
+ * Keeps settlements consistent when an order that was already batched gets refunded.
+ * - Batch still pending: the order is pulled out of the batch and the batch totals are recomputed (cancelled when empty).
+ * - Batch already paid out: a negative "adjustment" settlement row is recorded and deducted from the seller's next payout.
+ */
+async function adjustSettlementForRefund(tx: Tx, order: Order, viewer: Viewer, now: Date) {
+  if (!order.settlementId) return;
+  const [settlement] = await tx.select().from(s.settlements).where(eq(s.settlements.id, order.settlementId)).for("update");
+  if (!settlement) return;
+  if (settlement.status === "pending") {
+    await tx.update(s.orders).set({ settlementId: null }).where(eq(s.orders.id, order.id));
+    // Any deduction merged into this batch goes back to the pending pool, so the batch is recomputed from
+    // its remaining orders alone and the outstanding refund debt is applied to whichever payout comes next.
+    await releaseMergedAdjustments(tx, settlement.id);
+    const [agg] = await tx
+      .select({
+        n: sql<number>`count(*)::int`,
+        gross: sql<number>`coalesce(sum(${s.orders.totalCents}),0)::int`,
+        commission: sql<number>`coalesce(sum(${s.orders.commissionCents}),0)::int`,
+        net: sql<number>`coalesce(sum(${s.orders.sellerNetCents}),0)::int`,
+      })
+      .from(s.orders)
+      .where(eq(s.orders.settlementId, settlement.id));
+    const note = `[refund] ${order.orderNo} removed ${now.toISOString().slice(0, 10)}`;
+    const memo = [settlement.memo, note].filter(Boolean).join("\n").slice(0, 2000);
+    if (agg.n === 0) {
+      await tx.update(s.settlements).set({ status: "cancelled", memo }).where(eq(s.settlements.id, settlement.id));
+    } else {
+      await tx.update(s.settlements).set({ orderCount: agg.n, grossCents: agg.gross, commissionCents: agg.commission, netCents: agg.net, memo }).where(eq(s.settlements.id, settlement.id));
+    }
+    await tx.insert(s.orderEvents).values({ orderId: order.id, type: "settlement_adjusted", message: `Removed from pending settlement ${settlement.id.slice(0, 8)}`, actorId: viewer.user.id, actorRole: viewer.user.role });
+    return;
+  }
+  if (settlement.status === "paid" && order.sellerNetCents > 0) {
+    const [adjustment] = await tx
+      .insert(s.settlements)
+      .values({
+        sellerId: order.sellerId,
+        periodStart: now,
+        periodEnd: now,
+        currency: order.currency,
+        orderCount: 0,
+        grossCents: -order.totalCents,
+        commissionCents: -order.commissionCents,
+        netCents: -order.sellerNetCents,
+        status: "pending",
+        memo: `[adjustment] refund of ${order.orderNo} after payout (${settlement.reference ?? settlement.id.slice(0, 8)})`,
+        createdBy: viewer.user.id,
+      })
+      .returning({ id: s.settlements.id });
+    await tx.insert(s.orderEvents).values({ orderId: order.id, type: "settlement_adjusted", message: `Refund after payout: ${formatMoney(order.sellerNetCents, order.currency)} will be deducted from the next payout (adjustment ${adjustment.id.slice(0, 8)})`, actorId: viewer.user.id, actorRole: viewer.user.role });
+  }
+}
+
+/** Returns deductions consumed by `settlementId` to the pending pool (used when that batch shrinks or is cancelled). */
+async function releaseMergedAdjustments(tx: Tx, settlementId: string) {
+  await tx
+    .update(s.settlements)
+    .set({ status: "pending", reference: null, paidAt: null })
+    .where(and(eq(s.settlements.status, "paid"), eq(s.settlements.reference, mergedRef(settlementId)), adjustmentSettlementWhere));
+}
+
 /* ------------------------------------------------------------------ settlements */
+
+/** Marks a deduction as consumed by a payout batch. Not a transfer reference: `markSettlementPaid` rejects this shape. */
+const mergedRef = (settlementId: string) => `merged:${settlementId}`;
+
+/** Negative settlement rows created when an already-paid-out order is refunded; deducted from the next payout. */
+export const adjustmentSettlementWhere = and(eq(s.settlements.orderCount, 0), lt(s.settlements.netCents, 0))!;
+
+export function isAdjustmentSettlement(row: { orderCount: number; netCents: number }) {
+  return row.orderCount === 0 && row.netCents < 0;
+}
+
+/** Pending (not yet deducted) adjustments for a seller. */
+export async function pendingAdjustments(db: DB, sellerId: string) {
+  return db.select().from(s.settlements).where(and(eq(s.settlements.sellerId, sellerId), eq(s.settlements.status, "pending"), adjustmentSettlementWhere)).orderBy(s.settlements.createdAt);
+}
 
 /** Orders eligible for payout: paid, no open/finished refund, past the refund window, delivered if service, not yet settled. */
 export async function eligibleSettlementOrders(db: DB, sellerId: string, until: Date) {
@@ -355,27 +451,64 @@ export async function eligibleSettlementOrders(db: DB, sellerId: string, until: 
 }
 
 export async function createSettlement(db: DB, viewer: Viewer, sellerId: string, until: Date, memo?: string) {
-  const orders = await eligibleSettlementOrders(db, sellerId, until);
+  const [orders, adjustments] = await Promise.all([eligibleSettlementOrders(db, sellerId, until), pendingAdjustments(db, sellerId)]);
   if (!orders.length) throw new CommerceError("nothing_to_settle");
   const currency = orders[0].currency;
   const sum = (f: (o: Order) => number) => orders.reduce((a, o) => a + f(o), 0);
+  const adj = (f: (a: (typeof adjustments)[number]) => number) => adjustments.reduce((a, x) => a + f(x), 0);
+  const netCents = sum((o) => o.sellerNetCents) + adj((a) => a.netCents);
+  if (netCents <= 0) throw new CommerceError("adjustments_exceed_payout");
   const periodStart = new Date(Math.min(...orders.map((o) => o.paidAt!.getTime())));
+  const adjustmentNote = adjustments.length ? `[deducted] ${adjustments.length} refund adjustment(s): ${formatMoney(adj((a) => a.netCents), currency)}` : "";
   return db.transaction(async (tx) => {
     const [settlement] = await tx
       .insert(s.settlements)
-      .values({ sellerId, periodStart, periodEnd: until, currency, orderCount: orders.length, grossCents: sum((o) => o.totalCents), commissionCents: sum((o) => o.commissionCents), netCents: sum((o) => o.sellerNetCents), memo, createdBy: viewer.user.id })
+      .values({
+        sellerId,
+        periodStart,
+        periodEnd: until,
+        currency,
+        orderCount: orders.length,
+        grossCents: sum((o) => o.totalCents) + adj((a) => a.grossCents),
+        commissionCents: sum((o) => o.commissionCents) + adj((a) => a.commissionCents),
+        netCents,
+        memo: [memo, adjustmentNote].filter(Boolean).join("\n") || undefined,
+        createdBy: viewer.user.id,
+      })
       .returning();
     // Guard against two admins batching the same orders concurrently.
-    const claimed = await tx.update(s.orders).set({ settlementId: settlement.id }).where(and(inArray(s.orders.id, orders.map((o) => o.id)), isNull(s.orders.settlementId))).returning({ id: s.orders.id });
-    if (claimed.length !== orders.length) throw new CommerceError("invalid_state", "orders already settled");
+    const claimed = await tx
+      .update(s.orders)
+      .set({ settlementId: settlement.id })
+      .where(and(inArray(s.orders.id, orders.map((o) => o.id)), isNull(s.orders.settlementId), eq(s.orders.status, "paid"), ne(s.orders.refundStatus, "requested")))
+      .returning({ id: s.orders.id });
+    if (claimed.length !== orders.length) throw new CommerceError("invalid_state", "orders already settled or refunded");
+    if (adjustments.length) {
+      // Adjustments are consumed by this batch; cancelling the batch releases them again.
+      const merged = await tx
+        .update(s.settlements)
+        .set({ status: "paid", paidAt: new Date(), reference: mergedRef(settlement.id) })
+        .where(and(inArray(s.settlements.id, adjustments.map((a) => a.id)), eq(s.settlements.status, "pending")))
+        .returning({ id: s.settlements.id });
+      if (merged.length !== adjustments.length) throw new CommerceError("invalid_state", "adjustments already deducted");
+    }
     return settlement;
   });
 }
 
 export async function markSettlementPaid(db: DB, viewer: Viewer, settlementId: string, reference: string) {
   const [row] = await db.select().from(s.settlements).where(eq(s.settlements.id, settlementId));
-  if (!row || row.status !== "pending") throw new CommerceError("invalid_state");
-  await db.update(s.settlements).set({ status: "paid", paidAt: new Date(), reference: reference.slice(0, 200) }).where(eq(s.settlements.id, settlementId));
+  if (!row || row.status !== "pending" || isAdjustmentSettlement(row)) throw new CommerceError("invalid_state");
+  if (row.netCents <= 0) throw new CommerceError("nothing_to_pay_out");
+  // `merged:` marks a deduction consumed by a batch; an admin must not be able to forge one through this field.
+  if (/^merged:/i.test(reference.trim())) throw new CommerceError("reference_reserved");
+  // The status is in the WHERE so a batch cancelled or recomputed in the meantime is never flipped to paid.
+  const [paid] = await db
+    .update(s.settlements)
+    .set({ status: "paid", paidAt: new Date(), reference: reference.slice(0, 200) })
+    .where(and(eq(s.settlements.id, settlementId), eq(s.settlements.status, "pending"), eq(s.settlements.netCents, row.netCents)))
+    .returning({ id: s.settlements.id });
+  if (!paid) throw new CommerceError("invalid_state");
   const [seller] = await db.select({ email: s.users.email }).from(s.sellers).innerJoin(s.users, eq(s.users.id, s.sellers.userId)).where(eq(s.sellers.id, row.sellerId));
   if (seller) await sendMail(db, seller.email, "Ringo payout sent", `A payout of ${formatMoney(row.netCents, row.currency)} for ${row.orderCount} orders has been sent.\nReference: ${reference}`, "payout_paid");
   void viewer;
@@ -387,5 +520,7 @@ export async function cancelSettlement(db: DB, settlementId: string) {
   await db.transaction(async (tx) => {
     await tx.update(s.orders).set({ settlementId: null }).where(eq(s.orders.settlementId, settlementId));
     await tx.update(s.settlements).set({ status: "cancelled" }).where(eq(s.settlements.id, settlementId));
+    // Refund deductions merged into this batch go back to pending so the next payout applies them.
+    await releaseMergedAdjustments(tx, settlementId);
   });
 }

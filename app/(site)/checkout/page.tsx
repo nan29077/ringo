@@ -167,7 +167,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
                   {t("I agree to the ", "")}<Link href="/terms" target="_blank" className="sf-link">{t("Terms of Service", "이용약관")}</Link>{t(" and ", " 및 ")}<Link href="/privacy" target="_blank" className="sf-link">{t("Privacy Policy", "개인정보 처리방침")}</Link>{t(`. I understand digital content is available immediately, and refunds can be requested within ${settings.commerce.refundWindowDays} days.`, `에 동의합니다. 디지털 콘텐츠는 결제 즉시 제공되며, 환불은 ${settings.commerce.refundWindowDays}일 이내에 요청할 수 있음을 확인합니다.`)}
                 </span>
               </label>
-              <BusyButton className="sf-btn sf-btn-primary sf-btn-lg sf-btn-block" busyLabel={t("Processing…", "처리 중…")}>
+              <BusyButton className="sf-btn sf-btn-primary sf-btn-lg sf-btn-block" busyLabel={t("Processing…", "처리 중…")} disabled={!canPay}>
                 <Lock size={17} aria-hidden />
                 {totalCents === 0 ? t("Get it free", "무료로 받기") : t(`Pay ${money(totalCents)}`, `${money(totalCents)} 결제하기`)}
               </BusyButton>

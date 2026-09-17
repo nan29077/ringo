@@ -77,6 +77,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<SP>
       {one(sp, "link") === "invalid" && (
         <div className="rh-shell pt-5"><div className="sf-notice sf-notice-warn" role="status">{t("That link is not valid. Browse the catalog below instead.", "유효하지 않은 링크입니다. 아래 전체 상품을 둘러보세요.")}</div></div>
       )}
+      {one(sp, "link") === "unavailable" && (
+        <div className="rh-shell pt-5"><div className="sf-notice sf-notice-warn" role="status">{t("The product behind that link is not on sale right now. Browse the catalog below instead.", "해당 링크의 상품은 현재 판매하지 않습니다. 아래 전체 상품을 둘러보세요.")}</div></div>
+      )}
       <HeroCarousel slides={slides} />
 
       <div className="rh-promise">

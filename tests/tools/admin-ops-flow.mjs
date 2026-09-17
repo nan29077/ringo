@@ -49,7 +49,7 @@ await buyer.click('button[type=submit]');
 await buyer.waitForURL((u) => !u.pathname.startsWith('/signup'), { timeout: 60000 });
 console.log('signed up', buyerEmail);
 
-let orderUrl = null;
+let _orderUrl = null;
 if (steps.includes('buy')) {
   await buyer.goto(`${BASE}/checkout?product=creative-practice-workbook`, { waitUntil: 'networkidle' });
   await buyer.check('input[name=terms]');
@@ -75,7 +75,7 @@ if (steps.includes('buy')) {
   await admin.goto(`${BASE}/admin/orders?q=${encodeURIComponent(buyerEmail)}`, { waitUntil: 'networkidle' });
   await admin.locator('table a[href^="/admin/orders/"]').first().click();
   await admin.waitForURL(/\/admin\/orders\/[0-9a-f-]{36}/);
-  orderUrl = admin.url();
+  _orderUrl = admin.url();
   await admin.waitForLoadState('networkidle');
   await shot(admin, 'order_paid');
   // resend receipt

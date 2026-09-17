@@ -77,7 +77,14 @@ export async function toggleProductFlag(id: string, flag: "visible" | "featured"
     const value = which === "visible" ? !p.visible : !p.featured;
     await db.update(s.products).set(which === "visible" ? { visible: value } : { featured: value }).where(eq(s.products.id, productId));
     await audit(db, viewer, `product.${which}`, "product", productId, { value });
-    return { ok: true };
+    const { t } = await getT("ko");
+    return {
+      ok: true,
+      message:
+        which === "visible"
+          ? value ? t("Product is now listed.", "상품을 진열했습니다.") : t("Product is now hidden from the storefront.", "상품을 진열에서 내렸습니다.")
+          : value ? t("Added to featured.", "추천 상품으로 지정했습니다.") : t("Removed from featured.", "추천 상품에서 해제했습니다."),
+    };
   }, "ko");
 }
 

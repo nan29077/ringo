@@ -12,7 +12,8 @@ export function CopyButton({ value, label, className = "" }: { value: string; la
     <button
       type="button"
       className={`rc-btn rc-btn-outline rc-btn-sm ${className}`}
-      aria-label={t("Copy", "복사")}
+      aria-label={label ? undefined : t(`Copy ${value}`, `${value} 복사`)}
+      title={t("Copy", "복사")}
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(value);

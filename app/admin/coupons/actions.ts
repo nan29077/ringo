@@ -8,14 +8,15 @@ import { run, type ActionResult } from "@/lib/server/action";
 import { audit } from "@/lib/server/audit";
 import { getT } from "@/lib/server/i18n-server";
 import { CommerceError } from "@/lib/server/commerce";
+import { parseZonedInput } from "@/lib/time";
 
 const id = z.string().uuid();
 const blank = (v: unknown) => (v === "" || v === null || v === undefined ? undefined : v);
 const majorToCents = z.coerce.number().min(0).max(100000).transform((v) => Math.round(v * 100));
 const optionalDate = z.preprocess(blank, z.string().optional()).transform((v, ctx) => {
   if (!v) return null;
-  const d = new Date(v);
-  if (Number.isNaN(d.getTime())) {
+  const d = parseZonedInput(v);
+  if (!d) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid date" });
     return z.NEVER;
   }

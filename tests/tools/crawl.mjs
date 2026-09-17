@@ -1,7 +1,7 @@
 // Crawl internal links as a role and report HTTP errors, runtime errors and console errors.
 import { chromium } from '@playwright/test';
 const [,, email, startCsv, prefixCsv, maxArg] = process.argv;
-const BASE = 'http://127.0.0.1:3031';
+const BASE = process.env.BASE_URL || 'http://127.0.0.1:3031';
 const max = Number(maxArg || 150);
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const ctx = await browser.newContext({ viewport: { width: 1366, height: 900 } });

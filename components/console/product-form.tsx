@@ -19,9 +19,9 @@ const presetUrl = (key: string | null | undefined) => {
   return "/images/book.webp";
 };
 
-type LessonRow = { key: number; title: string; minutes: string; preview: boolean; assetId: string };
+type LessonRow = { key: number; title: string; minutes: string; preview: boolean; assetId: string; videoUrl: string; body: string };
 let seq = 0;
-const toRow = (l: Partial<Lesson>): LessonRow => ({ key: ++seq, title: l.title ?? "", minutes: l.minutes ? String(l.minutes) : "", preview: !!l.preview, assetId: l.assetId ?? "" });
+const toRow = (l: Partial<Lesson>): LessonRow => ({ key: ++seq, title: l.title ?? "", minutes: l.minutes ? String(l.minutes) : "", preview: !!l.preview, assetId: l.assetId ?? "", videoUrl: l.videoUrl ?? "", body: l.body ?? "" });
 
 function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
@@ -49,7 +49,7 @@ function F({ label, hint, required, children, className = "" }: { label: string;
  * Product create/edit form shared by the seller center and the admin console.
  * Submits FormData compatible with `productInput` in lib/server/catalog.ts.
  */
-export function ProductForm({ action, categories, product, assets = [], sellers, submitLabel }: {
+export function ProductForm({ action, categories, product, assets = [], sellers, submitLabel, admin = false }: {
   action: (fd: FormData) => Promise<ActionResult>;
   categories: ProductFormCategory[];
   product?: ProductRow;
@@ -57,6 +57,8 @@ export function ProductForm({ action, categories, product, assets = [], sellers,
   /** Admin only: shows a seller select when creating a product. */
   sellers?: { id: string; name: string }[];
   submitLabel?: string;
+  /** Admin console: delivery type stays editable. */
+  admin?: boolean;
 }) {
   const { t, lang } = useLang();
   const [categoryId, setCategoryId] = useState(product?.categoryId ?? categories[0]?.id ?? "");
@@ -64,7 +66,7 @@ export function ProductForm({ action, categories, product, assets = [], sellers,
   const category = categories.find((c) => c.id === categoryId);
   const type: DeliveryType = category?.deliveryType ?? product?.deliveryType ?? "download";
   const lessonsJson = useMemo(
-    () => JSON.stringify(lessons.filter((l) => l.title.trim()).map((l) => ({ title: l.title.trim(), minutes: l.minutes ? Number(l.minutes) : null, preview: l.preview, assetId: l.assetId || null }))),
+    () => JSON.stringify(lessons.filter((l) => l.title.trim()).map((l) => ({ title: l.title.trim(), minutes: l.minutes ? Number(l.minutes) : null, preview: l.preview, assetId: l.assetId || null, videoUrl: l.videoUrl.trim() || null, body: l.body.trim() || null }))),
     [lessons],
   );
   const update = (key: number, patch: Partial<LessonRow>) => setLessons((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -94,7 +96,7 @@ export function ProductForm({ action, categories, product, assets = [], sellers,
           </F>
         )}
         <div className="grid gap-4 md:grid-cols-2">
-          <F label={t("Category", "카테고리")} required hint={typeLabel ? t(`Delivery: ${typeLabel.en}`, `제공 방식: ${typeLabel.ko}`) : undefined}>
+          <F label={t("Category", "카테고리")} required hint={[typeLabel ? t(`Delivery: ${typeLabel.en}`, `제공 방식: ${typeLabel.ko}`) : "", product && (product.publishedAt || product.salesCount > 0 || product.status === "pending_review") && !admin ? t("The delivery type cannot be changed once a product is in review, approved or sold.", "심사 중이거나 심사를 통과했거나 판매된 상품은 제공 방식을 바꿀 수 없습니다.") : ""].filter(Boolean).join(" · ") || undefined}>
             <select name="categoryId" className="rc-select" required value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
               {categories.map((c) => <option key={c.id} value={c.id}>{lang === "ko" ? c.nameKo : c.nameEn}</option>)}
             </select>
@@ -142,7 +144,7 @@ export function ProductForm({ action, categories, product, assets = [], sellers,
       </Section>
 
       {type === "course" && (
-        <Section title={t("Lessons", "강의 목차")} description={t("Add lessons in order. Preview lessons are visible before purchase. Attach an uploaded file to a lesson if needed.", "순서대로 강의를 추가하세요. 미리보기 강의는 구매 전에도 볼 수 있습니다. 필요하면 업로드한 파일을 연결하세요.")}>
+        <Section title={t("Lessons", "강의 목차")} description={t("Add lessons in order. Each lesson can have a video link (YouTube, Vimeo or a direct video URL), an uploaded file and lesson notes. Preview lessons are visible before purchase.", "순서대로 강의를 추가하세요. 각 강의에는 영상 링크(YouTube·Vimeo·영상 파일 URL), 업로드 파일, 강의 노트를 넣을 수 있습니다. 미리보기 강의는 구매 전에도 볼 수 있습니다.")}>
           {lessons.length === 0 && <p className="text-sm text-[#8a8d96]">{t("No lessons yet.", "등록된 강의가 없습니다.")}</p>}
           <div className="grid gap-2">
             {lessons.map((l, i) => (
@@ -163,6 +165,19 @@ export function ProductForm({ action, categories, product, assets = [], sellers,
                   <button type="button" className="rc-btn rc-btn-outline rc-btn-sm !px-2" aria-label={t("Move down", "아래로")} disabled={i === lessons.length - 1} onClick={() => move(i, 1)}><ArrowDown /></button>
                   <button type="button" className="rc-btn rc-btn-danger rc-btn-sm !px-2" aria-label={t("Remove", "삭제")} onClick={() => setLessons((rows) => rows.filter((r) => r.key !== l.key))}><Trash2 /></button>
                 </div>
+                <details className="md:col-span-6" open={!!(l.videoUrl || l.body)}>
+                  <summary className="cursor-pointer text-xs font-medium text-[#2f4ac2]">{t("Lesson content", "강의 콘텐츠")}{l.videoUrl || l.body ? "" : ` · ${t("none yet", "미입력")}`}</summary>
+                  <div className="mt-2 grid gap-2 md:grid-cols-2">
+                    <label className="grid gap-1 text-xs text-[#6b6e78]">
+                      {t("Video URL (YouTube, Vimeo or direct video link)", "영상 URL (YouTube, Vimeo 또는 영상 파일 링크)")}
+                      <input type="url" className="rc-input" maxLength={500} placeholder="https://www.youtube.com/watch?v=…" value={l.videoUrl} onChange={(e) => update(l.key, { videoUrl: e.target.value })} />
+                    </label>
+                    <label className="grid gap-1 text-xs text-[#6b6e78]">
+                      {t("Lesson notes (shown under the video)", "강의 노트 (영상 아래에 표시)")}
+                      <textarea className="rc-textarea !min-h-[72px]" maxLength={20000} value={l.body} onChange={(e) => update(l.key, { body: e.target.value })} />
+                    </label>
+                  </div>
+                </details>
               </div>
             ))}
           </div>
@@ -179,7 +194,7 @@ export function ProductForm({ action, categories, product, assets = [], sellers,
             <F label={t("Price", "판매가")} required hint={t("0 makes the product free.", "0이면 무료 상품입니다.")}>
               <input name="price" type="number" min={0} max={100000} step="0.01" className="rc-input" required defaultValue={major(product?.priceCents) || ""} />
             </F>
-            <F label={t("Compare-at price", "정가 (할인 전)")} hint={t("Shown struck through when higher than the price.", "판매가보다 높을 때 취소선으로 표시됩니다.")}>
+            <F label={t("Compare-at price", "정가 (할인 전)")} hint={t("Optional. Must be higher than the price; shown struck through.", "선택. 판매가보다 높아야 하며 취소선으로 표시됩니다.")}>
               <input name="compareAt" type="number" min={0} max={100000} step="0.01" className="rc-input" defaultValue={major(product?.compareAtCents)} />
             </F>
           </div>
@@ -197,7 +212,7 @@ export function ProductForm({ action, categories, product, assets = [], sellers,
 
       <Section title={t("Address & SEO", "주소 · 검색 노출")}>
         <div className="grid gap-4 md:grid-cols-2">
-          <F label={t("URL slug", "상품 주소")} hint={product ? t(`Current: /p/${product.slug}`, `현재: /p/${product.slug}`) : t("Leave blank to generate from the English title.", "비워두면 영문 상품명으로 자동 생성됩니다.")}>
+          <F label={t("URL slug", "상품 주소")} hint={product ? t(`Current: /p/${product.slug} · an address already in use is rejected.`, `현재: /p/${product.slug} · 이미 사용 중인 주소는 저장되지 않습니다.`) : t("Leave blank to generate from the English title. An address already in use is rejected.", "비워두면 영문 상품명으로 자동 생성됩니다. 이미 사용 중인 주소는 저장되지 않습니다.")}>
             <input name="slug" className="rc-input" maxLength={80} defaultValue={product?.slug ?? ""} placeholder="my-product" />
           </F>
           <F label={t("SEO title", "검색 제목")} hint={t("Defaults to the product title.", "비워두면 상품명을 사용합니다.")}>

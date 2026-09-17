@@ -27,7 +27,7 @@ export default async function AdminNewProduct() {
       {sellers.length === 0 ? (
         <Notice tone="warn">{t("There are no active sellers. Approve a seller application first.", "운영중인 판매자가 없습니다. 먼저 입점 신청을 승인하세요.")}</Notice>
       ) : (
-        <ProductForm action={adminSaveProduct} categories={categories} sellers={sellers} />
+        <ProductForm admin action={adminSaveProduct} categories={categories} sellers={sellers} />
       )}
     </>
   );

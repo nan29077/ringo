@@ -54,9 +54,9 @@ export default async function AccountHome() {
         </div>
       )}
 
-      <div className="mb-6 grid grid-cols-3 gap-3">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {stats.map((st) => (
-          <Link key={st.href} href={st.href} className="sf-card flex items-center gap-3 p-4 transition hover:border-[#c9ccc0]">
+          <Link key={st.href} href={st.href} className="sf-card flex min-w-0 items-center gap-3 p-4 transition hover:border-[#c9ccc0]">
             <st.icon size={20} className="hidden text-[#7c8570] sm:block" aria-hidden />
             <span className="min-w-0"><strong className="block text-[22px] font-semibold text-[#20211f]">{st.value}</strong><span className="block truncate text-[13px] text-[#6b7065]">{st.label}</span></span>
           </Link>

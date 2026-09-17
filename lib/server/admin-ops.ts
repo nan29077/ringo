@@ -1,9 +1,9 @@
 import "server-only";
-import { and, eq, ilike, inArray, isNotNull, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, gt, ilike, inArray, isNotNull, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import * as s from "@/db/schema";
 import type { DB } from "./db";
 import type { Viewer } from "./auth";
-import { CommerceError, addOrderEvent } from "./commerce";
+import { CommerceError, addOrderEvent, adjustmentSettlementWhere } from "./commerce";
 import { getSettings } from "./settings";
 import { likeQ, one, periodWhere, type SP } from "./list";
 import { newOrderNo } from "./ids";
@@ -188,7 +188,7 @@ export async function payoutOverview(db: DB) {
   const settings = await getSettings(db);
   const cutoff = new Date(Date.now() - settings.commerce.refundWindowDays * 86400000);
   const eligible = sql`(${s.orders.paidAt} <= ${cutoff.toISOString()}::timestamptz and ${s.orders.refundStatus} <> 'requested' and ${s.orders.fulfillmentStatus} in ('not_required','delivered'))`;
-  const rows = await db
+  const orderRows = await db
     .select({
       sellerId: s.orders.sellerId,
       availableN: sql<number>`count(*) filter (where ${eligible})::int`,
@@ -198,8 +198,20 @@ export async function payoutOverview(db: DB) {
       currency: sql<string>`min(${s.orders.currency})`,
     })
     .from(s.orders)
-    .where(and(eq(s.orders.status, "paid"), isNull(s.orders.settlementId)))
+    // Free orders have nothing to pay out and never become eligible, so they are left out of the queue.
+    .where(and(eq(s.orders.status, "paid"), isNull(s.orders.settlementId), gt(s.orders.totalCents, 0)))
     .groupBy(s.orders.sellerId);
+  // A seller can owe a refund deduction while having no unsettled orders at all: keep them in the queue.
+  const adjustmentRows = await db
+    .select({ sellerId: s.settlements.sellerId, n: sql<number>`count(*)::int`, cents: sql<number>`coalesce(sum(${s.settlements.netCents}),0)::int` })
+    .from(s.settlements)
+    .where(and(eq(s.settlements.status, "pending"), adjustmentSettlementWhere))
+    .groupBy(s.settlements.sellerId);
+  const aMap = new Map(adjustmentRows.map((x) => [x.sellerId, x]));
+  const blank = { availableN: 0, availableCents: 0, holdingN: 0, holdingCents: 0, currency: settings.site.currency };
+  const rows = [...new Set([...orderRows.map((r) => r.sellerId), ...adjustmentRows.map((r) => r.sellerId)])].map(
+    (sellerId) => orderRows.find((r) => r.sellerId === sellerId) ?? { sellerId, ...blank },
+  );
   const ids = rows.map((r) => r.sellerId);
   const [sellerRows, lastPaid] = await Promise.all([
     ids.length
@@ -222,7 +234,20 @@ export async function payoutOverview(db: DB) {
   return {
     settings,
     rows: rows
-      .map((r) => ({ ...r, seller: sMap.get(r.sellerId)?.seller, email: sMap.get(r.sellerId)?.email, lastPaidAt: pMap.get(r.sellerId)?.lastPaidAt ?? null, pendingSettlements: pMap.get(r.sellerId)?.pendingN ?? 0 }))
+      .map((r) => {
+        const adj = aMap.get(r.sellerId);
+        return {
+          ...r,
+          // Refunds of already-paid-out orders are deducted from the next payout.
+          adjustmentN: adj?.n ?? 0,
+          adjustmentCents: adj?.cents ?? 0,
+          availableCents: r.availableCents + (adj?.cents ?? 0),
+          seller: sMap.get(r.sellerId)?.seller,
+          email: sMap.get(r.sellerId)?.email,
+          lastPaidAt: pMap.get(r.sellerId)?.lastPaidAt ?? null,
+          pendingSettlements: (pMap.get(r.sellerId)?.pendingN ?? 0) - (adj?.n ?? 0),
+        };
+      })
       .filter((r) => r.seller)
       .sort((a, b) => b.availableCents - a.availableCents || b.holdingCents - a.holdingCents),
   };

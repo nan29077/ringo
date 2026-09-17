@@ -14,6 +14,7 @@ import { one, type SP } from "@/lib/server/list";
 import { activeEntitlement, isPurchasable, listCatalog, pick, productBySlug, publicName, wishlistIds } from "@/lib/server/storefront";
 import { bytes, formatDate, formatMoney } from "@/lib/i18n";
 import { ProductCard } from "@/components/store/product-card";
+import { LessonPlayer } from "@/components/store/lesson-player";
 import { WishlistButton } from "@/components/store/wishlist-button";
 import { Stars } from "@/components/store/stars";
 
@@ -74,6 +75,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const coupon = COUPON_RE.test(couponRaw) ? couponRaw : "";
   const checkoutHref = `/checkout?product=${encodeURIComponent(p.slug)}${coupon ? `&coupon=${encodeURIComponent(coupon)}` : ""}`;
   const ownProduct = !!viewer?.seller && viewer.seller.id === p.sellerId;
+  const showWishlist = purchasable && !owns && !ownProduct;
   if (one(sp, "buy") === "1" && purchasable && !owns && !ownProduct && !linkMessage) {
     redirect(viewer ? checkoutHref : `/login?next=${encodeURIComponent(checkoutHref)}`);
   }
@@ -155,8 +157,9 @@ export default async function ProductPage({ params, searchParams }: Props) {
             ) : (
               <span className="sf-btn sf-btn-outline sf-btn-lg sf-btn-block" aria-disabled="true">{t("Not available for purchase", "구매할 수 없는 상품")}</span>
             )}
-            <div className="grid grid-cols-2 gap-2.5">
-              <WishlistButton productId={p.id} saved={saved.has(p.id)} signedIn={!!viewer} next={`/p/${p.slug}`} className="sf-wish-inline" withLabel />
+            {/* Saving for later only makes sense while the product can still be bought by this visitor. */}
+            <div className={showWishlist ? "grid grid-cols-2 gap-2.5" : "grid gap-2.5"}>
+              {showWishlist && <WishlistButton productId={p.id} saved={saved.has(p.id)} signedIn={!!viewer} next={`/p/${p.slug}`} className="sf-wish-inline" withLabel />}
               <Link href={`/account/inquiries/new?product=${p.id}`} className="sf-wish-inline"><MessageCircle size={18} aria-hidden />{t("Ask the seller", "판매자에게 문의")}</Link>
             </div>
             {service && entitlement && <p className="text-center text-sm text-[#6b7065]">{t("You have ordered this service before.", "이전에 이 서비스를 주문한 적이 있어요.")} <Link href="/account/orders" className="sf-link">{t("View orders", "주문 내역 보기")}</Link></p>}
@@ -188,14 +191,26 @@ export default async function ProductPage({ params, searchParams }: Props) {
             <span className="text-sm text-[#6b7065]">{t(`${lessons.length} lessons`, `${lessons.length}개 강의`)}{totalMinutes > 0 && ` · ${t(`${totalMinutes} min`, `${totalMinutes}분`)}`}</span>
           </div>
           <ol className="sf-lessons">
-            {lessons.map((l, i) => (
-              <li key={i}>
-                <span className="n">{String(i + 1).padStart(2, "0")}</span>
-                <span className="min-w-0 flex-1">{l.title}</span>
-                {l.preview && <span className="sf-pill sf-pill-brand">{t("Preview", "미리보기")}</span>}
-                {l.minutes ? <span className="flex items-center gap-1 text-sm text-[#7a7e73]"><Clock size={14} aria-hidden />{t(`${l.minutes} min`, `${l.minutes}분`)}</span> : null}
-              </li>
-            ))}
+            {lessons.map((l, i) => {
+              // Preview lessons are playable before purchase; the rest only show their title.
+              const previewable = l.preview && !!(l.videoUrl || l.body);
+              return (
+                <li key={i} className={previewable ? "!block" : undefined}>
+                  <div className="flex items-center gap-3">
+                    <span className="n">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="min-w-0 flex-1">{l.title}</span>
+                    {l.preview && <span className="sf-pill sf-pill-brand">{t("Preview", "미리보기")}</span>}
+                    {l.minutes ? <span className="flex items-center gap-1 text-sm text-[#7a7e73]"><Clock size={14} aria-hidden />{t(`${l.minutes} min`, `${l.minutes}분`)}</span> : null}
+                  </div>
+                  {previewable && (
+                    <details className="sf-lesson">
+                      <summary>{t("Watch the preview", "미리보기 재생")}</summary>
+                      <LessonPlayer lesson={l} title={l.title} />
+                    </details>
+                  )}
+                </li>
+              );
+            })}
           </ol>
         </section>
       )}

@@ -144,7 +144,7 @@ export default async function AdminProductDetail({ params, searchParams }: { par
         {tabs.map((x) => <Link key={x.id} href={`/admin/products/${id}${x.id === "overview" ? "" : `?tab=${x.id}`}`} className={tab === x.id ? "active" : ""}>{x.label}</Link>)}
       </nav>
 
-      {tab === "edit" && <ProductForm action={adminSaveProduct} categories={categories} product={product} assets={assets.map((a) => ({ id: a.id, filename: a.filename }))} />}
+      {tab === "edit" && <ProductForm admin action={adminSaveProduct} categories={categories} product={product} assets={assets.map((a) => ({ id: a.id, filename: a.filename }))} />}
 
       {tab === "reviews" && (
         <Panel title={<>{t("Buyer reviews", "구매평")} <span className="ml-1 text-[#8a8d96]">{reviews.length}</span></>} bodyClass="p-0" actions={<Link href={`/admin/reviews?q=${encodeURIComponent(product.titleEn)}`} className="rc-btn rc-btn-outline rc-btn-sm">{t("Open in review manager", "구매평 관리에서 보기")}</Link>}>

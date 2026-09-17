@@ -9,6 +9,7 @@ import { dailySales, daysAgo, salesSummary } from "@/lib/server/analytics";
 import { sellerBalance, sellerCounts } from "@/lib/server/seller-center";
 import { mediaUrl } from "@/lib/server/storage";
 import { formatDate, formatMoney } from "@/lib/i18n";
+import { startOfZonedDay } from "@/lib/time";
 import { fulfillmentStatus, orderStatus, refundStatus } from "@/lib/status";
 import { PageHeader, Panel, StatCard, DataTable, EmptyState, Notice, Badge } from "@/components/console/ui";
 import { StatusBadge } from "@/components/console/status-badge";
@@ -21,7 +22,7 @@ export default async function SellerDashboard() {
   const sellerId = viewer.seller.id;
   const db = await getDb();
   const { t, lang } = await getT("ko");
-  const today = new Date(new Date().toDateString());
+  const today = startOfZonedDay();
 
   const [month, todaySum, series, balance, counts, recent, top, notices] = await Promise.all([
     salesSummary(db, daysAgo(30), sellerId),

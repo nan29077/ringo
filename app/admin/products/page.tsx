@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { and, count, desc, eq, gte, ilike, lte, or, type SQL } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { Plus } from "lucide-react";
 import * as s from "@/db/schema";
 import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
-import { likeQ, listParams, one, periodWhere, type SP } from "@/lib/server/list";
+import { listParams, type SP } from "@/lib/server/list";
 import { mediaUrl } from "@/lib/server/storage";
+import { adminProductWhere } from "@/lib/server/admin-catalog";
 import { formatDate, formatMoney } from "@/lib/i18n";
 import { deliveryType, productStatus } from "@/lib/status";
 import { PageHeader, Panel, DataTable, EmptyState, Badge } from "@/components/console/ui";
@@ -18,7 +19,7 @@ export const metadata = { title: "Products" };
 
 export default async function AdminProducts({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
-  const { page, size, offset, q } = listParams(sp);
+  const { page, size, offset } = listParams(sp);
   const { t, lang } = await getT("ko");
   const db = await getDb();
   const [cats, sellerRows] = await Promise.all([
@@ -26,15 +27,7 @@ export default async function AdminProducts({ searchParams }: { searchParams: Pr
     db.select({ id: s.sellers.id, name: s.sellers.displayName }).from(s.sellers).where(eq(s.sellers.status, "active")),
   ]);
 
-  const where: (SQL | undefined)[] = [periodWhere(s.products.createdAt, sp)];
-  if (q) where.push(or(ilike(s.products.titleEn, likeQ(q)), ilike(s.products.titleKo, likeQ(q)), ilike(s.products.slug, likeQ(q)), ilike(s.sellers.displayName, likeQ(q))));
-  if (one(sp, "status")) where.push(eq(s.products.status, one(sp, "status") as s.ProductStatus));
-  if (one(sp, "category")) where.push(eq(s.products.categoryId, one(sp, "category")));
-  if (one(sp, "seller")) where.push(eq(s.products.sellerId, one(sp, "seller")));
-  if (one(sp, "visible")) where.push(eq(s.products.visible, one(sp, "visible") === "yes"));
-  if (one(sp, "min")) where.push(gte(s.products.priceCents, Math.round(Number(one(sp, "min")) * 100)));
-  if (one(sp, "max")) where.push(lte(s.products.priceCents, Math.round(Number(one(sp, "max")) * 100)));
-  const cond = and(...where);
+  const cond = adminProductWhere(sp);
 
   const [rows, [{ total }]] = await Promise.all([
     db.select({ p: s.products, seller: s.sellers.displayName, category: lang === "ko" ? s.categories.nameKo : s.categories.nameEn })

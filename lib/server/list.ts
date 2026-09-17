@@ -1,5 +1,6 @@
 import "server-only";
 import { and, gte, lt, type SQL, type AnyColumn } from "drizzle-orm";
+import { addZonedDays, parseZonedInput, startOfZonedDaysAgo } from "@/lib/time";
 
 export type SP = Record<string, string | string[] | undefined>;
 export const one = (sp: SP, k: string) => (Array.isArray(sp[k]) ? sp[k]![0] : sp[k]) ?? "";
@@ -15,17 +16,17 @@ export function periodRange(sp: SP): { from?: Date; to?: Date } {
   const from = one(sp, "from");
   const to = one(sp, "to");
   if (from || to) {
+    const toStart = parseZonedInput(to);
     return {
-      from: from ? new Date(from + "T00:00:00") : undefined,
-      to: to ? new Date(new Date(to + "T00:00:00").getTime() + 86400000) : undefined,
+      from: parseZonedInput(from) ?? undefined,
+      // `to` is inclusive, so the exclusive bound is the start of the next calendar day.
+      to: toStart ? addZonedDays(toStart, 1) : undefined,
     };
   }
   const p = one(sp, "period");
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const days: Record<string, number> = { today: 0, "7d": 7, "1m": 30, "3m": 90, "1y": 365 };
   if (!(p in days)) return {};
-  return { from: new Date(startOfToday.getTime() - days[p] * 86400000) };
+  return { from: startOfZonedDaysAgo(days[p]) };
 }
 
 export function periodWhere(col: AnyColumn, sp: SP): SQL | undefined {

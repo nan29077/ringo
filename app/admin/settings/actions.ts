@@ -1,9 +1,11 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
+import * as s from "@/db/schema";
 import { requireAdmin } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
-import { run, type ActionResult } from "@/lib/server/action";
+import { ActionError, run, type ActionResult } from "@/lib/server/action";
 import { audit } from "@/lib/server/audit";
 import { getT } from "@/lib/server/i18n-server";
 import { CommerceError } from "@/lib/server/commerce";
@@ -42,8 +44,18 @@ export async function adminSaveSettings(fd: FormData): Promise<ActionResult> {
     const raw = Object.fromEntries(fd);
     const current = await getSettings(db);
     let next: SiteSettings[typeof section];
-    if (section === "site") next = siteInput.parse(raw);
-    else if (section === "commerce") {
+    if (section === "site") {
+      next = siteInput.parse(raw);
+      if (next.currency !== current.site.currency) {
+        // Ringo runs in a single currency: dashboards and settlements sum amounts as one currency, so it can only be
+        // changed before any product or order exists in the previous one.
+        const [{ products }] = await db.select({ products: sql<number>`count(*)::int` }).from(s.products);
+        const [{ orders }] = await db.select({ orders: sql<number>`count(*)::int` }).from(s.orders);
+        if (products > 0 || orders > 0) {
+          throw new ActionError(t(`The currency cannot be changed once products or orders exist (${products} products, ${orders} orders in ${current.site.currency}).`, `상품이나 주문이 있으면 통화를 변경할 수 없습니다 (${current.site.currency} 기준 상품 ${products}개, 주문 ${orders}건).`));
+        }
+      }
+    } else if (section === "commerce") {
       const v = commerceInput.parse(raw);
       next = { defaultCommissionBps: Math.round(v.commissionPercent * 100), refundWindowDays: v.refundWindowDays, pendingPaymentMinutes: v.pendingPaymentMinutes, minPayoutCents: Math.round(v.minPayout * 100) };
     } else next = moderationInput.parse(raw);

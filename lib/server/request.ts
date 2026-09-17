@@ -37,6 +37,11 @@ export async function appOrigin() {
 }
 
 const buckets = new Map<string, { count: number; reset: number }>();
+/** Clears a counter after a successful attempt, so legitimate use never exhausts an abuse limit. */
+export function rateLimitReset(...keys: string[]) {
+  for (const k of keys) buckets.delete(k);
+}
+
 /** Simple fixed-window limiter (per server instance). Use a shared store (Redis/DynamoDB) when scaling out. */
 export function rateLimit(key: string, limit: number, windowMs: number) {
   const now = Date.now();

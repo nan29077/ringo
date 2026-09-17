@@ -69,6 +69,24 @@ export const deliveryType: Record<string, Entry> = {
   collection: m("Collection", "기획전 패키지", "amber"),
 };
 
+/** Order timeline event types (consoles). The stored English message stays as the detail line. */
+export const orderEventType: Record<string, Entry> = {
+  created: m("Order placed", "주문 접수", "gray"),
+  payment_started: m("Payment started", "결제 시작", "blue"),
+  paid: m("Payment completed", "결제 완료", "green"),
+  payment_failed: m("Payment failed", "결제 실패", "red"),
+  expired: m("Payment window elapsed", "결제 시간 만료", "gray"),
+  cancelled: m("Cancelled", "주문 취소", "gray"),
+  in_progress: m("Production started", "제작 시작", "blue"),
+  delivered: m("Delivered", "납품 완료", "green"),
+  late_payment: m("Late payment", "지연 결제", "red"),
+  refund_requested: m("Refund requested", "환불 요청", "amber"),
+  refund_rejected: m("Refund declined", "환불 거절", "red"),
+  refunded: m("Refunded", "환불 완료", "red"),
+  settlement_adjusted: m("Settlement adjusted", "정산 조정", "amber"),
+  note: m("Admin note", "관리자 메모", "gray"),
+};
+
 export function label(map: Record<string, Entry>, key: string | null | undefined, lang: "en" | "ko") {
   const e = key ? map[key] : undefined;
   return e ? (lang === "ko" ? e.ko : e.en) : key ?? "—";

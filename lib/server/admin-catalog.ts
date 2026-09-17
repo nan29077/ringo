@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 import * as s from "@/db/schema";
 import type { DB } from "./db";
-import { daysAgo } from "./analytics";
+import { startOfZonedDaysAgo } from "@/lib/time";
 import { likeQ, one, periodWhere, type SP } from "./list";
 
 const productStatuses = ["draft", "pending_review", "published", "rejected", "suspended", "archived"];
@@ -43,7 +43,7 @@ export const RANGE_PRESETS = [7, 30, 90, 365] as const;
 export function analyticsRange(sp: SP, fallback = 30) {
   const n = Number(one(sp, "range"));
   const days = (RANGE_PRESETS as readonly number[]).includes(n) ? n : fallback;
-  return { days, from: new Date(daysAgo(days - 1).toDateString()) };
+  return { days, from: startOfZonedDaysAgo(days - 1) };
 }
 
 export const isUuid = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);

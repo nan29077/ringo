@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { parseZonedInput } from "@/lib/time";
 import * as s from "@/db/schema";
 import { requireAdmin } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
@@ -24,8 +25,8 @@ export async function createPayoutBatch(fd: FormData): Promise<ActionResult> {
     const [seller] = await db.select().from(s.sellers).where(eq(s.sellers.id, input.sellerId));
     if (!seller) throw new ActionError("not_found");
     // Cut-off date is inclusive (end of that day, server time). Blank = now; commerce still applies the refund window.
-    const until = input.until ? new Date(`${input.until}T23:59:59.999`) : new Date();
-    if (Number.isNaN(until.getTime())) throw new ActionError(t("Invalid cut-off date.", "기준일이 올바르지 않습니다."));
+    const until = input.until ? parseZonedInput(input.until, { endOfDay: true }) : new Date();
+    if (!until) throw new ActionError(t("Invalid cut-off date.", "기준일이 올바르지 않습니다."));
     const settlement = await createSettlement(db, viewer, seller.id, new Date(Math.min(until.getTime(), Date.now())), input.memo || undefined);
     await audit(db, viewer, "settlement.create", "settlement", settlement.id, { sellerId: seller.id, until: input.until || null, orders: settlement.orderCount, netCents: settlement.netCents, memo: input.memo || null });
     revalidatePath("/admin/settlements");

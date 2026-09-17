@@ -9,13 +9,14 @@ import { run, type ActionResult } from "@/lib/server/action";
 import { audit } from "@/lib/server/audit";
 import { getT } from "@/lib/server/i18n-server";
 import { CommerceError } from "@/lib/server/commerce";
+import { parseZonedInput } from "@/lib/time";
 
 const id = z.string().uuid();
 const opt = (max: number) => z.string().trim().max(max).optional().transform((v) => (v ? v : null));
 const optionalDate = z.string().optional().transform((v, ctx) => {
   if (!v) return null;
-  const d = new Date(v);
-  if (Number.isNaN(d.getTime())) {
+  const d = parseZonedInput(v);
+  if (!d) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid date" });
     return z.NEVER;
   }
@@ -30,7 +31,7 @@ const bannerInput = z
     subtitleKo: opt(240),
     ctaEn: opt(40),
     ctaKo: opt(40),
-    imageKey: z.string().trim().min(1).max(300).regex(/^(preset:banner-(books|course|design)|public\/banners\/[a-zA-Z0-9/_.-]+)$/, "Choose a preset or upload an image"),
+    imageKey: z.string().trim().min(1).max(300).regex(/^(preset:banner-(books|course|design)(-v2)?|public\/banners\/[a-zA-Z0-9/_.-]+)$/, "Choose a preset or upload an image"),
     linkUrl: opt(500).refine((v) => !v || isSafeNext(v) || /^https:\/\/[^\s\\]+$/.test(v), "Must start with / or https://"),
     sort: z.coerce.number().int().min(0).max(100000),
     active: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
@@ -103,7 +104,8 @@ export async function moveBanner(bannerId: string, dir: "up" | "down"): Promise<
     });
     await audit(db, viewer, "banner.move", "banner", target, { direction, position: j + 1 });
     refresh();
-    return { ok: true };
+    const { t } = await getT("ko");
+    return { ok: true, message: t(`Moved to position ${j + 1}.`, `${j + 1}번째로 옮겼습니다.`) };
   }, "ko");
 }
 

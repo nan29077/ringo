@@ -46,9 +46,9 @@ export function RedirectForm({ action, children, className, confirm }: { action:
 }
 
 /** Submit button that shows a busy label while its RedirectForm is working. */
-export function BusyButton({ children, busyLabel, className, name, value }: { children: React.ReactNode; busyLabel: string; className?: string; name?: string; value?: string }) {
+export function BusyButton({ children, busyLabel, className, name, value, disabled }: { children: React.ReactNode; busyLabel: string; className?: string; name?: string; value?: string; disabled?: boolean }) {
   return (
-    <button type="submit" name={name} value={value} className={`sf-busy-btn ${className ?? ""}`}>
+    <button type="submit" name={name} value={value} disabled={disabled} className={`sf-busy-btn ${className ?? ""}`}>
       <span className="sf-busy-idle">{children}</span>
       <span className="sf-busy-active" aria-live="polite">{busyLabel}</span>
     </button>

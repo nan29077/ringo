@@ -3,6 +3,8 @@ import { ActionForm } from "@/components/common/action-form";
 import { AuthCard, AuthInput, SubmitButton } from "../auth-card";
 import { resetPassword } from "../actions";
 
+export const metadata = { title: "New password", robots: { index: false } };
+
 export default async function ResetPasswordPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
   const { token } = await searchParams;
   const { t } = await getT();

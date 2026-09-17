@@ -114,7 +114,7 @@ export default async function SellerProductDetail({ params, searchParams }: { pa
                     <td className="whitespace-nowrap text-xs text-[#6b6e78]">{formatDate(a.createdAt, lang, true)}</td>
                     <td className="text-right whitespace-nowrap">
                       <a href={`/api/download/asset/${a.id}`} className="rc-btn rc-btn-outline rc-btn-sm mr-1"><Download />{t("Download", "다운로드")}</a>
-                      <ActionButton action={sellerDeleteAsset.bind(null, a.id)} confirm={t(`Delete ${a.filename}?`, `${a.filename} 파일을 삭제할까요?`)} className="text-[#c0362c]">
+                      <ActionButton action={sellerDeleteAsset.bind(null, a.id)} confirm={t(`Delete ${a.filename}? Buyers who already purchased will no longer be able to download this file.`, `${a.filename} 파일을 삭제할까요? 이미 구매한 고객도 이 파일을 더 이상 받을 수 없습니다.`)} className="text-[#c0362c]">
                         <Trash2 />{t("Delete", "삭제")}
                       </ActionButton>
                     </td>

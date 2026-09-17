@@ -22,13 +22,15 @@ for (const next of ['/\\evil.com', '/%5Cevil.com', '//evil.com', '/\tevil.com', 
 const okRes = await ctx.request.get(`${BASE}/login?next=${encodeURIComponent('/account/orders')}`, { maxRedirects: 0 });
 check((okRes.headers()['location'] || '').endsWith('/account/orders'), `legit next=/account/orders → ${okRes.headers()['location']}`);
 
-// 2) rate limit cannot be bypassed by rotating X-Forwarded-For
+// 2) rate limit cannot be bypassed by rotating X-Forwarded-For.
+// A throwaway address is used so a run does not lock a demo account out for the next 15 minutes.
+const bruteEmail = `bruteforce-${Date.now().toString(36)}@example.com`;
 let blockedAt = 0;
 for (let i = 1; i <= 14; i++) {
   const c = await b.newContext({ extraHTTPHeaders: { 'x-forwarded-for': `10.9.${i}.${i}` } });
   const pg = await c.newPage();
   await pg.goto(`${BASE}/login`);
-  await pg.fill('input[name=email]', 'buyer@ringo.local');
+  await pg.fill('input[name=email]', bruteEmail);
   await pg.fill('input[name=password]', 'wrong-password-' + i);
   await pg.click('button[type=submit]');
   const text = await pg.locator('[data-sonner-toast]').last().innerText({ timeout: 30000 }).catch(() => '');

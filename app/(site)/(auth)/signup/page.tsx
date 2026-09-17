@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { getViewer, isSafeNext } from "@/lib/server/auth";
 import { getT } from "@/lib/server/i18n-server";
 import { ActionForm } from "@/components/common/action-form";
 import { AuthCard, AuthInput, SubmitButton } from "../auth-card";
@@ -9,6 +11,9 @@ export const metadata: Metadata = { title: "Sign up" };
 
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const { next } = await searchParams;
+  // Someone already signed in has no reason to see the signup form.
+  const viewer = await getViewer();
+  if (viewer) redirect(isSafeNext(next) ? next! : viewer.user.role === "admin" ? "/admin" : viewer.user.role === "seller" ? "/seller" : "/account");
   const { t } = await getT();
   return (
     <AuthCard

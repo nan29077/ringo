@@ -10,7 +10,7 @@ import { getSettings } from "@/lib/server/settings";
 import { holdReasons, isUuid } from "@/lib/server/seller-center";
 import { mediaUrl } from "@/lib/server/storage";
 import { bytes, formatDate, formatMoney } from "@/lib/i18n";
-import { deliveryType, fulfillmentStatus, orderStatus, paymentStatus, refundStatus, settlementStatus, userStatus } from "@/lib/status";
+import { deliveryType, fulfillmentStatus, label, orderEventType, orderStatus, paymentStatus, refundStatus, settlementStatus, userStatus } from "@/lib/status";
 import { PageHeader, Panel, DetailList, Notice, DataTable, EmptyState, Badge } from "@/components/console/ui";
 import { StatusBadge } from "@/components/console/status-badge";
 import { ActionButton, ActionForm } from "@/components/common/action-form";
@@ -49,7 +49,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
   const service = product.deliveryType === "service";
   const money = (c: number) => formatMoney(c, o.currency, lang);
   const overdue = o.status === "paid" && !!o.dueAt && o.dueAt.getTime() < Date.now() && (o.fulfillmentStatus === "pending" || o.fulfillmentStatus === "in_progress");
-  const hold = o.status === "paid" && !o.settlementId ? holdReasons(o, settings.commerce.refundWindowDays) : null;
+  const hold = o.status === "paid" && !o.settlementId && o.totalCents > 0 ? holdReasons(o, settings.commerce.refundWindowDays) : null;
   const holdLabel: Record<string, string> = {
     refund_requested: t("refund requested", "환불 요청 처리 전"),
     not_delivered: t("not delivered yet", "납품 전"),
@@ -216,6 +216,8 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
 
           {o.status === "paid" && (
             <Panel title={t("Admin refund", "관리자 환불")} description={t("Refund the full amount without a buyer request, or record a refund already processed in the payment provider console.", "구매자 요청 없이 전액 환불하거나, PG 관리자 화면에서 이미 처리한 환불을 기록합니다.")}>
+              {settlement?.status === "paid" && <div className="mb-4"><Notice tone="warn">{t(`This order was already paid out to the seller (settlement ${formatDate(settlement.paidAt ?? settlement.createdAt, lang)}). Refunding it records a deduction of ${money(o.sellerNetCents)} against the seller's next payout.`, `이 주문은 이미 판매자에게 정산 지급되었습니다 (${formatDate(settlement.paidAt ?? settlement.createdAt, lang)}). 환불하면 판매자 정산액 ${money(o.sellerNetCents)}이 다음 정산에서 차감됩니다.`)}</Notice></div>}
+              {settlement?.status === "pending" && <div className="mb-4"><Notice>{t("This order is in a pending settlement batch. Refunding it removes it from the batch and updates the batch totals.", "이 주문은 지급 대기 중인 정산서에 포함되어 있습니다. 환불하면 정산서에서 제외되고 정산 금액이 다시 계산됩니다.")}</Notice></div>}
               <div className="grid gap-5 lg:grid-cols-2">
                 <ActionForm action={adminForceRefund} className="grid content-start gap-2" confirm={t(`Refund ${money(o.totalCents)} through ${succeeded?.provider ?? "the provider"} and revoke access?`, `${succeeded?.provider ?? "결제사"}를 통해 ${money(o.totalCents)}을 환불하고 이용 권한을 회수할까요?`)}>
                   <input type="hidden" name="orderId" value={o.id} />
@@ -245,7 +247,8 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
                   <div key={e.id}>
                     <i className={e.type === "refunded" || e.type.includes("fail") || e.type === "late_payment" ? "!bg-[#e5484d]" : e.type === "paid" || e.type === "delivered" ? "!bg-[#16a36a]" : ""} />
                     <div>
-                      <div className="text-sm text-[#1c1d22]">{e.message ?? e.type}</div>
+                      <div className="text-sm text-[#1c1d22]">{label(orderEventType, e.type, lang)}</div>
+                      {e.message && <div className="text-xs text-[#6b6e78]">{e.message}</div>}
                       <div className="text-[11px] text-[#8a8d96]">{formatDate(e.createdAt, lang, true)} · {e.type}{e.actorRole ? ` · ${e.actorRole}` : ""}{actorEmail ? ` (${actorEmail})` : ""}</div>
                     </div>
                   </div>
@@ -271,7 +274,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
                 [t("Access", "이용 권한"), entitlement ? <Badge key="e" tone={entitlement.status === "active" ? "green" : "gray"}>{entitlement.status === "active" ? t("Active", "이용 가능") : t(`Revoked ${formatDate(entitlement.revokedAt, lang)}`, `회수됨 ${formatDate(entitlement.revokedAt, lang)}`)}</Badge> : "—"],
                 [t("Settlement", "정산"), settlement ? (
                   <Link key="s" href={`/admin/settlements/${settlement.id}`} className="inline-flex items-center gap-1.5 text-[#2f4ac2] hover:underline">{formatDate(settlement.createdAt, lang)} <StatusBadge map={settlementStatus} value={settlement.status} lang={lang} /></Link>
-                ) : hold ? (hold.reasons.length ? t(`Holding: ${hold.reasons.map((r) => holdLabel[r]).join(", ")}`, `보류: ${hold.reasons.map((r) => holdLabel[r]).join(", ")}`) : t("Eligible for next payout", "다음 정산 대상")) : "—"],
+                ) : o.status === "paid" && o.totalCents === 0 ? t("Free order · nothing to settle", "무료 주문 · 정산 대상 아님") : hold ? (hold.reasons.length ? t(`Holding: ${hold.reasons.map((r) => holdLabel[r]).join(", ")}`, `보류: ${hold.reasons.map((r) => holdLabel[r]).join(", ")}`) : t("Eligible for next payout", "다음 정산 대상")) : "—"],
               ]}
             />
             {o.refundStatus === "rejected" && o.refundRejectReason && <div className="mt-4"><Notice>{t("Refund rejected", "환불 거절 사유")}: {o.refundRejectReason}</Notice></div>}
