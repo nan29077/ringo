@@ -17,6 +17,9 @@
     "admin:create": "tsx --conditions=react-server scripts/create-admin.ts",
     "test:e2e": "node tests/e2e/lifecycle.mjs",
     "test:settlement": "node tests/tools/settlement-refund.mjs",
+    "test:mail": "node tests/tools/mail-language.mjs",
+    "test:coupon": "node tests/tools/coupon-math.mjs",
+    "test:ui": "node tests/tools/ui-regress.mjs",
     "test:security": "node tests/tools/security-regress.mjs",
     "test:crawl": "node tests/tools/crawl.mjs admin@ringo.local /admin /admin 300"
   },

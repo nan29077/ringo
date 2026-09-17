@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { Megaphone, Pin } from "lucide-react";
+import { OpenHashDetails } from "@/components/common/open-hash-details";
 import * as s from "@/db/schema";
 import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
@@ -19,6 +20,7 @@ export default async function NoticesPage() {
     .limit(100);
   return (
     <main className="shell sf-page">
+      <OpenHashDetails />
       <div className="mx-auto max-w-[820px]">
         <p className="sf-kicker">{t("From the Ringo team", "링고 팀 소식")}</p>
         <h1 className="sf-h1">{t("Notices", "공지사항")}</h1>
@@ -28,7 +30,7 @@ export default async function NoticesPage() {
           <ul className="mt-8 grid gap-3">
             {rows.map((n) => (
               <li key={n.id}>
-                <details className="sf-card group" open={n.pinned}>
+                <details id={n.id} className="sf-card group" open={n.pinned}>
                   <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4">
                     {n.pinned && <Pin size={16} className="text-[#ed4b2e]" aria-label={t("Pinned", "고정")} />}
                     <span className="min-w-0 flex-1 font-semibold text-[#20211f]">{n.title}</span>

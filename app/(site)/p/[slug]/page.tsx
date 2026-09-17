@@ -12,7 +12,7 @@ import { mediaUrl } from "@/lib/server/storage";
 import { appOrigin } from "@/lib/server/request";
 import { one, type SP } from "@/lib/server/list";
 import { activeEntitlement, isPurchasable, listCatalog, pick, productBySlug, publicName, wishlistIds } from "@/lib/server/storefront";
-import { bytes, formatDate, formatMoney } from "@/lib/i18n";
+import { bytes, formatDate, formatMoney, n } from "@/lib/i18n";
 import { ProductCard } from "@/components/store/product-card";
 import { LessonPlayer } from "@/components/store/lesson-player";
 import { WishlistButton } from "@/components/store/wishlist-button";
@@ -168,7 +168,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
           <ul className="sf-facts">
             {p.deliveryType === "download" && <li><Download aria-hidden />{t("Instant download after payment", "결제 후 바로 다운로드")}{fileCount > 0 && ` · ${t(`${fileCount} ${fileCount === 1 ? "file" : "files"}`, `파일 ${fileCount}개`)} (${bytes(fileBytes)})`}</li>}
             {p.deliveryType === "collection" && <li><Package aria-hidden />{t("Curated bundle — instant access after payment", "엄선한 패키지 · 결제 후 바로 이용")}{fileCount > 0 && ` · ${t(`${fileCount} ${fileCount === 1 ? "file" : "files"}`, `파일 ${fileCount}개`)}`}</li>}
-            {p.deliveryType === "course" && <li><PlayCircle aria-hidden />{t(`${lessons.length} lessons`, `강의 ${lessons.length}개`)}{totalMinutes > 0 && ` · ${t(`${totalMinutes} min total`, `총 ${totalMinutes}분`)}`} · {t("learn at your own pace", "원하는 속도로 수강")}</li>}
+            {p.deliveryType === "course" && <li><PlayCircle aria-hidden />{t(n(lessons.length, "lesson"), `강의 ${lessons.length}개`)}{totalMinutes > 0 && ` · ${t(`${totalMinutes} min total`, `총 ${totalMinutes}분`)}`} · {t("learn at your own pace", "원하는 속도로 수강")}</li>}
             {service && <li><CalendarClock aria-hidden />{t(`Delivered within ${deliveryDays} days of payment`, `결제 후 ${deliveryDays}일 이내 납품`)}</li>}
             {service && <li><FileText aria-hidden />{t("You’ll describe your request (brief) at checkout", "결제 단계에서 제작 요청 내용을 작성합니다")}</li>}
             {p.formatLabel && <li><BookOpen aria-hidden />{p.formatLabel}</li>}
@@ -188,7 +188,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
         <section className="sf-section" aria-labelledby="outline-title">
           <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2" style={{ maxWidth: 760 }}>
             <h2 id="outline-title" className="sf-h2">{t("Course outline", "커리큘럼")}</h2>
-            <span className="text-sm text-[#6b7065]">{t(`${lessons.length} lessons`, `${lessons.length}개 강의`)}{totalMinutes > 0 && ` · ${t(`${totalMinutes} min`, `${totalMinutes}분`)}`}</span>
+            <span className="text-sm text-[#6b7065]">{t(n(lessons.length, "lesson"), `${lessons.length}개 강의`)}{totalMinutes > 0 && ` · ${t(`${totalMinutes} min`, `${totalMinutes}분`)}`}</span>
           </div>
           <ol className="sf-lessons">
             {lessons.map((l, i) => {

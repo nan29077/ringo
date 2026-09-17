@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import * as s from "@/db/schema";
 import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
+import { getSettings } from "@/lib/server/settings";
 import { listParams, type SP } from "@/lib/server/list";
 import { mediaUrl } from "@/lib/server/storage";
 import { adminProductWhere } from "@/lib/server/admin-catalog";
@@ -22,6 +23,7 @@ export default async function AdminProducts({ searchParams }: { searchParams: Pr
   const { page, size, offset } = listParams(sp);
   const { t, lang } = await getT("ko");
   const db = await getDb();
+  const settings = await getSettings(db);
   const [cats, sellerRows] = await Promise.all([
     db.select().from(s.categories).orderBy(s.categories.sort),
     db.select({ id: s.sellers.id, name: s.sellers.displayName }).from(s.sellers).where(eq(s.sellers.status, "active")),
@@ -56,6 +58,8 @@ export default async function AdminProducts({ searchParams }: { searchParams: Pr
           { type: "select", name: "category", label: ["Category", "카테고리"], options: cats.map((c) => ({ value: c.id, en: c.nameEn, ko: c.nameKo })) },
           { type: "select", name: "seller", label: ["Seller", "판매자"], options: sellerRows.map((x) => ({ value: x.id, en: x.name, ko: x.name })) },
           { type: "select", name: "visible", label: ["Display", "진열상태"], options: [{ value: "yes", en: "Displayed", ko: "진열중" }, { value: "no", en: "Hidden", ko: "진열안함" }] },
+          { type: "select", name: "featured", label: ["Featured", "추천"], options: [{ value: "yes", en: "Featured", ko: "추천중" }, { value: "no", en: "Not featured", ko: "추천 아님" }] },
+          { type: "range", name: ["min", "max"], label: ["Price", "가격"], unit: settings.site.currency, step: "0.01" },
           { type: "period" },
         ]}
       />

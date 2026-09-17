@@ -8,7 +8,7 @@ import { getT } from "@/lib/server/i18n-server";
 import { mediaUrl } from "@/lib/server/storage";
 import { one, type SP } from "@/lib/server/list";
 import { pick } from "@/lib/server/storefront";
-import { bytes, formatDate } from "@/lib/i18n";
+import { bytes, formatDate, n } from "@/lib/i18n";
 import { deliveryType, fulfillmentStatus, label } from "@/lib/status";
 import { StatusBadge } from "@/components/console/status-badge";
 import { AccountHeader, Empty } from "@/components/store/account-ui";
@@ -85,7 +85,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
 
                     {p.deliveryType === "course" && lessons > 0 && (
                       <div className="mt-3 max-w-md">
-                        <div className="mb-1.5 flex justify-between text-[13px] text-[#4c5046]"><span>{t(`${completed} of ${lessons} lessons complete`, `${lessons}개 중 ${completed}개 완료`)}</span><span>{pct}%</span></div>
+                        <div className="mb-1.5 flex justify-between text-[13px] text-[#4c5046]"><span>{t(`${completed} of ${n(lessons, "lesson")} complete`, `${lessons}개 중 ${completed}개 완료`)}</span><span>{pct}%</span></div>
                         <div className="sf-progress" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={t("Course progress", "수강 진도")}><i style={{ width: `${pct}%` }} /></div>
                       </div>
                     )}

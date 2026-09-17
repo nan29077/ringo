@@ -8,7 +8,7 @@ import { likeQ, one, periodWhere, type SP } from "./list";
 const productStatuses = ["draft", "pending_review", "published", "rejected", "suspended", "archived"];
 
 /**
- * WHERE for the admin product list filters (q, status, category, seller, visible, min, max, period).
+ * WHERE for the admin product list filters (q, status, category, seller, visible, featured, min, max, period).
  * Requires `sellers` to be joined (search covers the seller display name). Mirrors app/admin/products/page.tsx.
  */
 export function adminProductWhere(sp: SP) {
@@ -20,6 +20,7 @@ export function adminProductWhere(sp: SP) {
   if (one(sp, "category")) where.push(eq(s.products.categoryId, one(sp, "category")));
   if (/^[0-9a-f-]{36}$/i.test(one(sp, "seller"))) where.push(eq(s.products.sellerId, one(sp, "seller")));
   if (one(sp, "visible")) where.push(eq(s.products.visible, one(sp, "visible") === "yes"));
+  if (one(sp, "featured")) where.push(eq(s.products.featured, one(sp, "featured") === "yes"));
   const min = Number(one(sp, "min"));
   const max = Number(one(sp, "max"));
   if (one(sp, "min") && Number.isFinite(min)) where.push(gte(s.products.priceCents, Math.round(min * 100)));

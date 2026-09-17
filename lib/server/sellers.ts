@@ -6,7 +6,7 @@ import type { DB } from "./db";
 import type { Viewer } from "./auth";
 import { CommerceError } from "./commerce";
 import { getSettings } from "./settings";
-import { sendMail } from "./mail";
+import { sendTemplateMail } from "./mail";
 
 export const sellerProfileInput = z.object({
   displayName: z.string().trim().min(2).max(60),
@@ -62,7 +62,14 @@ export async function reviewSeller(db: DB, viewer: Viewer, sellerId: string, dec
   if (decision === "reject" && !reason?.trim()) throw new CommerceError("reason_required");
   await db.update(s.sellers).set({ status: decision === "approve" ? "active" : "rejected", rejectReason: decision === "reject" ? reason!.trim() : null, reviewedBy: viewer.user.id, reviewedAt: new Date(), updatedAt: new Date() }).where(eq(s.sellers.id, sellerId));
   if (decision === "approve" && row.user.role === "buyer") await db.update(s.users).set({ role: "seller" }).where(eq(s.users.id, row.user.id));
-  await sendMail(db, row.user.email, decision === "approve" ? "Welcome to Ringo sellers" : "Your Ringo seller application", decision === "approve" ? `Your store "${row.seller.displayName}" is approved. Open the seller center: ${process.env.APP_URL || ""}/seller` : `We could not approve your application.\nReason: ${reason}\nYou can update and re-apply at ${process.env.APP_URL || ""}/sell`, "seller_review");
+  const origin = process.env.APP_URL || "";
+  await sendTemplateMail(db, row.user.email, "seller_review", row.user.locale, {
+    approved: decision === "approve",
+    store: row.seller.displayName,
+    reason: reason?.trim() ?? null,
+    sellerUrl: `${origin}/seller`,
+    applyUrl: `${origin}/sell`,
+  });
 }
 
 export async function setSellerStatus(db: DB, viewer: Viewer, sellerId: string, status: "active" | "suspended", reason?: string) {

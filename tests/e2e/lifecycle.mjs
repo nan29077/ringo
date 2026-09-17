@@ -135,6 +135,22 @@ try {
   const orderId = orderUrl.match(/orders\/([0-9a-f-]{36})/)[1];
   ok('buyer purchased the new product with WELCOME10 ($18.00)');
 
+  // Coupon discounts are borne by the seller: the 10% fee stays on the $20 list price.
+  await A.page.goto(`${BASE}/admin/orders/${orderId}`, { timeout: T });
+  const money = await A.page.locator('main').innerText();
+  const fee = money.match(/판매 수수료[\s\S]{0,20}?\$([\d.]+)/)?.[1];
+  const net = money.match(/판매자 정산액[\s\S]{0,20}?\$([\d.]+)/)?.[1];
+  if (fee !== '2.00' || net !== '16.00') fail(`coupon order commission/net wrong: fee=${fee} net=${net} (expected 2.00 / 16.00)`);
+  else ok('coupon discount is charged to the seller (fee $2.00 on the $20 list price, net $16.00)');
+  if (!/정가 \$20\.00/.test(money)) fail('order detail does not explain the commission basis');
+  else ok('order detail explains that the fee is charged on the list price');
+
+  // Transactional mail follows the recipient's language (buyer signed up in English).
+  await A.page.goto(`${BASE}/admin/messages?q=${encodeURIComponent(buyerEmail)}`, { timeout: T });
+  const mailList = await A.page.locator('main').innerText();
+  if (!/Your Ringo order|Verify your Ringo email/.test(mailList)) fail('buyer emails are not in English');
+  else ok('buyer emails were rendered from the English templates');
+
   // 7. Download from library
   await B.page.goto(`${BASE}/account/library`, { timeout: T });
   const dl = B.page.locator(`a[href^="/api/download/asset/"]`).first();

@@ -7,6 +7,7 @@ import { listParams, type SP } from "@/lib/server/list";
 import { formatDate } from "@/lib/i18n";
 import { PageHeader, Panel, EmptyState, Badge } from "@/components/console/ui";
 import { Pagination } from "@/components/console/filters";
+import { OpenHashDetails } from "@/components/common/open-hash-details";
 
 export const metadata = { title: "Notices" };
 
@@ -23,6 +24,7 @@ export default async function SellerNotices({ searchParams }: { searchParams: Pr
   ]);
   return (
     <>
+      <OpenHashDetails />
       <PageHeader title={t("Notices", "공지사항")} description={t("Announcements from the Ringo team for sellers.", "링고 운영팀이 판매자에게 전하는 공지입니다.")} />
       <Panel bodyClass="p-0">
         {rows.length ? (

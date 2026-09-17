@@ -6,7 +6,7 @@ import type { Viewer } from "./auth";
 import { getSettings } from "./settings";
 import { newOrderNo } from "./ids";
 import { getProvider } from "./payments";
-import { sendMail } from "./mail";
+import { recipientLang, sendTemplateMail } from "./mail";
 import { logError } from "./audit";
 import { formatMoney } from "../i18n";
 
@@ -102,8 +102,10 @@ export async function createOrder(
   }
   const totalCents = product.priceCents - discountCents;
   const commissionBps = seller.commissionBps ?? settings.commerce.defaultCommissionBps;
-  // Commission is charged on what the buyer actually paid. Platform coupons reduce the platform's share first.
-  const commissionCents = Math.round((totalCents * commissionBps) / 10000);
+  // Coupon discounts are borne by the seller: the commission is charged on the list price, not on the
+  // discounted amount, so a coupon never reduces the platform's share. It is capped at what the buyer
+  // actually paid so the seller's payout can never go negative (e.g. a 100% coupon pays out nothing).
+  const commissionCents = Math.min(Math.round((product.priceCents * commissionBps) / 10000), totalCents);
   const sellerNetCents = totalCents - commissionCents;
 
   let link: typeof s.deepLinks.$inferSelect | undefined;
@@ -243,10 +245,28 @@ export async function failPayment(db: DB, paymentId: string, reason: string, sta
 }
 
 async function notifyPaid(db: DB, order: Order) {
-  const [seller] = await db.select({ email: s.users.email, name: s.sellers.displayName }).from(s.sellers).innerJoin(s.users, eq(s.users.id, s.sellers.userId)).where(eq(s.sellers.id, order.sellerId));
+  const [seller] = await db
+    .select({ email: s.users.email, name: s.sellers.displayName, locale: s.users.locale })
+    .from(s.sellers)
+    .innerJoin(s.users, eq(s.users.id, s.sellers.userId))
+    .where(eq(s.sellers.id, order.sellerId));
   const origin = process.env.APP_URL || "";
-  await sendMail(db, order.buyerEmail, `Your Ringo order ${order.orderNo}`, `Hi ${order.buyerName},\n\nThank you for your purchase of "${order.productTitle}" (${formatMoney(order.totalCents, order.currency)}).\nOpen your library: ${origin}/account/library\n\nOrder: ${order.orderNo}`, "order_paid_buyer");
-  if (seller) await sendMail(db, seller.email, `New order ${order.orderNo}`, `${seller.name}, you have a new order for "${order.productTitle}".\nNet: ${formatMoney(order.sellerNetCents, order.currency)}\n${origin}/seller/orders/${order.id}`, "order_paid_seller");
+  await sendTemplateMail(db, order.buyerEmail, "order_paid_buyer", await recipientLang(db, { userId: order.buyerId }), {
+    name: order.buyerName,
+    orderNo: order.orderNo,
+    product: order.productTitle,
+    total: formatMoney(order.totalCents, order.currency),
+    libraryUrl: `${origin}/account/library`,
+  });
+  if (seller) {
+    await sendTemplateMail(db, seller.email, "order_paid_seller", seller.locale, {
+      store: seller.name,
+      orderNo: order.orderNo,
+      product: order.productTitle,
+      net: formatMoney(order.sellerNetCents, order.currency),
+      orderUrl: `${origin}/seller/orders/${order.id}`,
+    });
+  }
 }
 
 export async function cancelPendingOrder(db: DB, viewer: Viewer, orderId: string) {
@@ -295,7 +315,12 @@ export async function deliverOrder(db: DB, viewer: Viewer, orderId: string, note
   if (!note.trim()) throw new CommerceError("note_required");
   await db.update(s.orders).set({ fulfillmentStatus: "delivered", deliveryNote: note.trim().slice(0, 4000), deliveredAt: new Date(), updatedAt: new Date() }).where(eq(s.orders.id, orderId));
   await addOrderEvent(db, orderId, "delivered", "Delivery sent to buyer", viewer);
-  await sendMail(db, order.buyerEmail, `Your order ${order.orderNo} has been delivered`, `"${order.productTitle}" is ready.\n\n${note.trim()}\n\n${process.env.APP_URL || ""}/account/orders/${order.id}`, "order_delivered");
+  await sendTemplateMail(db, order.buyerEmail, "order_delivered", await recipientLang(db, { userId: order.buyerId }), {
+    orderNo: order.orderNo,
+    product: order.productTitle,
+    note: note.trim(),
+    orderUrl: `${process.env.APP_URL || ""}/account/orders/${order.id}`,
+  });
 }
 
 export async function requestRefund(db: DB, viewer: Viewer, orderId: string, reason: string) {
@@ -315,7 +340,7 @@ export async function rejectRefund(db: DB, viewer: Viewer, orderId: string, reas
   if (!reason.trim()) throw new CommerceError("reason_required");
   await db.update(s.orders).set({ refundStatus: "rejected", refundRejectReason: reason.trim().slice(0, 2000), updatedAt: new Date() }).where(eq(s.orders.id, orderId));
   await addOrderEvent(db, orderId, "refund_rejected", `Refund rejected: ${reason.trim().slice(0, 200)}`, viewer);
-  await sendMail(db, order.buyerEmail, `Refund request for ${order.orderNo}`, `Your refund request was not approved.\nReason: ${reason.trim()}`, "refund_rejected");
+  await sendTemplateMail(db, order.buyerEmail, "refund_rejected", await recipientLang(db, { userId: order.buyerId }), { orderNo: order.orderNo, reason: reason.trim() });
 }
 
 /**
@@ -357,7 +382,11 @@ export async function refundOrder(db: DB, viewer: Viewer, orderId: string, reaso
     await tx.insert(s.orderEvents).values({ orderId, type: "refunded", message: `Refunded ${formatMoney(order.totalCents, order.currency)}${opts.manual ? " (manual)" : ""}: ${reason.slice(0, 200)}`, actorId: viewer.user.id, actorRole: viewer.user.role });
     await adjustSettlementForRefund(tx, order, viewer, now);
   });
-  await sendMail(db, order.buyerEmail, `Refund completed for ${order.orderNo}`, `We refunded ${formatMoney(order.totalCents, order.currency)} for "${order.productTitle}". Access to the content has been removed.`, "refund_completed");
+  await sendTemplateMail(db, order.buyerEmail, "refund_completed", await recipientLang(db, { userId: order.buyerId }), {
+    orderNo: order.orderNo,
+    product: order.productTitle,
+    amount: formatMoney(order.totalCents, order.currency),
+  });
 }
 
 /**
@@ -509,8 +538,14 @@ export async function markSettlementPaid(db: DB, viewer: Viewer, settlementId: s
     .where(and(eq(s.settlements.id, settlementId), eq(s.settlements.status, "pending"), eq(s.settlements.netCents, row.netCents)))
     .returning({ id: s.settlements.id });
   if (!paid) throw new CommerceError("invalid_state");
-  const [seller] = await db.select({ email: s.users.email }).from(s.sellers).innerJoin(s.users, eq(s.users.id, s.sellers.userId)).where(eq(s.sellers.id, row.sellerId));
-  if (seller) await sendMail(db, seller.email, "Ringo payout sent", `A payout of ${formatMoney(row.netCents, row.currency)} for ${row.orderCount} orders has been sent.\nReference: ${reference}`, "payout_paid");
+  const [seller] = await db.select({ email: s.users.email, locale: s.users.locale }).from(s.sellers).innerJoin(s.users, eq(s.users.id, s.sellers.userId)).where(eq(s.sellers.id, row.sellerId));
+  if (seller) {
+    await sendTemplateMail(db, seller.email, "payout_paid", seller.locale, {
+      amount: formatMoney(row.netCents, row.currency),
+      orderCount: row.orderCount,
+      reference: reference.slice(0, 200),
+    });
+  }
   void viewer;
 }
 

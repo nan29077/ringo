@@ -8,7 +8,7 @@ import { CommerceError } from "./commerce";
 import { getSettings } from "./settings";
 import { slugify } from "./ids";
 import { randomCode } from "./ids";
-import { sendMail } from "./mail";
+import { sendTemplateMail } from "./mail";
 import { storage } from "./storage";
 
 type Product = typeof s.products.$inferSelect;
@@ -180,7 +180,7 @@ export async function assertDeliverable(db: DB, product: Pick<Product, "id" | "d
 
 export async function reviewProduct(db: DB, viewer: Viewer, productId: string, decision: "approve" | "reject", reason?: string) {
   if (viewer.user.role !== "admin") throw new CommerceError("forbidden");
-  const [row] = await db.select({ product: s.products, email: s.users.email }).from(s.products).innerJoin(s.sellers, eq(s.sellers.id, s.products.sellerId)).innerJoin(s.users, eq(s.users.id, s.sellers.userId)).where(eq(s.products.id, productId));
+  const [row] = await db.select({ product: s.products, email: s.users.email, locale: s.users.locale }).from(s.products).innerJoin(s.sellers, eq(s.sellers.id, s.products.sellerId)).innerJoin(s.users, eq(s.users.id, s.sellers.userId)).where(eq(s.products.id, productId));
   if (!row || row.product.status !== "pending_review") throw new CommerceError("invalid_state");
   if (decision === "reject" && !reason?.trim()) throw new CommerceError("reason_required");
   if (decision === "approve") await assertDeliverable(db, row.product);
@@ -190,7 +190,7 @@ export async function reviewProduct(db: DB, viewer: Viewer, productId: string, d
     publishedAt: decision === "approve" ? new Date() : row.product.publishedAt,
     updatedAt: new Date(),
   }).where(eq(s.products.id, productId));
-  await sendMail(db, row.email, decision === "approve" ? `"${row.product.titleEn}" is now on sale` : `"${row.product.titleEn}" needs changes`, decision === "approve" ? "Your product was approved and is now visible on Ringo." : `Your product was not approved.\nReason: ${reason}\nEdit the product and submit it again.`, "product_review");
+  await sendTemplateMail(db, row.email, "product_review", row.locale, { approved: decision === "approve", product: row.product.titleEn, reason: reason?.trim() ?? null });
 }
 
 /** Status changes available outside of review. */

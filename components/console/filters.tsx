@@ -8,7 +8,8 @@ export type FilterField =
   | { type: "search"; name: string; placeholder: [string, string] }
   | { type: "select"; name: string; label: [string, string]; options: { value: string; en: string; ko: string }[] }
   | { type: "period"; name?: string }
-  | { type: "date"; name: string; label: [string, string] };
+  | { type: "date"; name: string; label: [string, string] }
+  | { type: "range"; name: [string, string]; label: [string, string]; unit?: string; step?: string };
 
 const periods = [
   ["today", "Today", "오늘"],
@@ -60,6 +61,15 @@ export function FilterBar({ fields, exportHref }: { fields: FilterField[]; expor
                   <option value="">{t(...f.label)}: {t("All", "전체")}</option>
                   {f.options.map((o) => <option key={o.value} value={o.value}>{t(f.label[0], f.label[1])}: {t(o.en, o.ko)}</option>)}
                 </select>
+              </label>
+            );
+          if (f.type === "range")
+            return (
+              <label key={i} className="rc-filter-field">
+                <span className="whitespace-nowrap text-xs text-[#8a8d96]">{t(...f.label)}{f.unit ? ` (${f.unit})` : ""}</span>
+                <input type="number" min={0} step={f.step ?? "1"} aria-label={`${t(...f.label)} ${t("from", "최소")}`} value={values[f.name[0]] ?? ""} onChange={(e) => set(f.name[0], e.target.value)} className="w-full min-w-0 bg-transparent outline-none" />
+                <span className="text-xs text-[#9a9ca5]">~</span>
+                <input type="number" min={0} step={f.step ?? "1"} aria-label={`${t(...f.label)} ${t("to", "최대")}`} value={values[f.name[1]] ?? ""} onChange={(e) => set(f.name[1], e.target.value)} className="w-full min-w-0 bg-transparent outline-none" />
               </label>
             );
           if (f.type === "date")

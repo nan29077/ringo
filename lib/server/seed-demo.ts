@@ -126,8 +126,20 @@ export async function seedDemoData(db: DB) {
     formatLabel: "PDF · 40 pages", priceCents: 1800, status: "pending_review", coverKey: "preset:book", submittedAt: new Date(now - day),
   });
 
-  const [link] = await db.insert(s.deepLinks).values({ code: "mgw-insta", productId: idMap.p1, sellerId: sn.id, name: "Make Good Work · Instagram", source: "instagram", medium: "social", campaign: "creative-start", clicks: 42 }).returning();
-  await db.insert(s.deepLinks).values({ code: "type-news", productId: idMap.p2, sellerId: sn.id, name: "Studio kit · Newsletter", source: "newsletter", medium: "email", campaign: "studio-edit", destination: "checkout", clicks: 17 });
+  const [link] = await db.insert(s.deepLinks).values({ code: "mgw-insta", productId: idMap.p1, sellerId: sn.id, name: "Make Good Work · Instagram", source: "instagram", medium: "social", campaign: "creative-start" }).returning();
+  const [link2] = await db.insert(s.deepLinks).values({ code: "type-news", productId: idMap.p2, sellerId: sn.id, name: "Studio kit · Newsletter", source: "newsletter", medium: "email", campaign: "studio-edit", destination: "checkout" }).returning();
+  // The click counter and the click log have to agree, or the deep-link report contradicts itself.
+  for (const [row, count, referrer] of [[link, 42, "https://instagram.com/"], [link2, 17, "https://mail.example.com/"]] as const) {
+    await db.insert(s.linkClicks).values(
+      Array.from({ length: count }, (_, i) => ({
+        linkId: row.id,
+        visitorHash: `demo-${row.code}-${i % 23}`,
+        referrer,
+        createdAt: new Date(now - ((i % 20) + 1) * day),
+      })),
+    );
+    await db.update(s.deepLinks).set({ clicks: count }).where(eq(s.deepLinks.id, row.id));
+  }
 
   await db.insert(s.coupons).values([
     { code: "WELCOME10", name: "Welcome 10% off", kind: "percent", value: 10, usageLimit: 1000, perUserLimit: 1 },

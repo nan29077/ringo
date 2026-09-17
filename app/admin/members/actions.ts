@@ -7,7 +7,7 @@ import { getDb } from "@/lib/server/db";
 import { ActionError, run, type ActionResult } from "@/lib/server/action";
 import { audit } from "@/lib/server/audit";
 import { getT } from "@/lib/server/i18n-server";
-import { sendMail } from "@/lib/server/mail";
+import { sendTemplateMail } from "@/lib/server/mail";
 import { randomToken, sha256 } from "@/lib/server/password";
 import { appOrigin, rateLimit } from "@/lib/server/request";
 import { activeAdminCount, grantEntitlement, revokeEntitlement } from "@/lib/server/admin-ops";
@@ -53,7 +53,7 @@ export async function sendMemberPasswordReset(userId: string): Promise<ActionRes
     const token = randomToken();
     await db.insert(s.authTokens).values({ userId: user.id, type: "reset_password", tokenHash: sha256(token), expiresAt: new Date(Date.now() + 3600000) });
     const origin = await appOrigin();
-    await sendMail(db, user.email, "Reset your Ringo password", `Hi ${user.name},\n\nA Ringo operator sent you a password reset link (valid for 1 hour):\n${origin}/reset-password?token=${token}\n\nIf you did not expect this, contact support.`, "reset_password");
+    await sendTemplateMail(db, user.email, "reset_password", user.locale, { name: user.name, url: `${origin}/reset-password?token=${token}`, byOperator: true });
     await audit(db, viewer, "member.password_reset_sent", "user", user.id);
     return { ok: true, message: t(`Reset link sent to ${user.email}.`, `${user.email}로 비밀번호 재설정 링크를 보냈습니다.`) };
   }, "ko");

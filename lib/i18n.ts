@@ -17,4 +17,9 @@ export function formatDate(d: Date | string | null | undefined, lang: Lang = "en
   }).format(date);
 }
 
+/** English count + noun with the right number: `n(1, "result")` → "1 result", `n(3, "result")` → "3 results". */
+export function n(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 export const bytes = (n: number) => n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`;

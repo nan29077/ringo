@@ -179,7 +179,12 @@ export default async function SellerOrderDetail({ params }: { params: Promise<{ 
                 [t("Subtotal", "상품 금액"), money(o.subtotalCents)],
                 [t("Discount", "할인"), o.discountCents ? `-${money(o.discountCents)}${o.couponCode ? ` (${o.couponCode})` : ""}` : "—"],
                 [t("Total paid", "결제 금액"), <b key="t">{money(o.totalCents)}</b>],
-                [t("Commission", "판매 수수료"), `${money(o.commissionCents)} (${(o.commissionBps / 100).toFixed(1)}%)`],
+                [
+                  t("Commission", "판매 수수료"),
+                  o.discountCents
+                    ? t(`${money(o.commissionCents)} (${(o.commissionBps / 100).toFixed(1)}% of the ${money(o.subtotalCents)} list price — coupon discounts are not deducted from the fee)`, `${money(o.commissionCents)} (정가 ${money(o.subtotalCents)}의 ${(o.commissionBps / 100).toFixed(1)}% · 쿠폰 할인은 수수료에서 차감되지 않습니다)`)
+                    : `${money(o.commissionCents)} (${(o.commissionBps / 100).toFixed(1)}%)`,
+                ],
                 [t("Seller net", "판매자 정산액"), <b key="n" className="text-[#16794a]">{money(o.sellerNetCents)}</b>],
                 ...(o.refundedCents ? [[t("Refunded", "환불 금액"), `${money(o.refundedCents)} · ${formatDate(o.refundedAt, lang)}`] as [string, string]] : []),
                 [t("Paid at", "결제일시"), formatDate(o.paidAt, lang, true)],

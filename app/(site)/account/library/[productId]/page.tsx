@@ -8,7 +8,7 @@ import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
 import { mediaUrl } from "@/lib/server/storage";
 import { activeEntitlement, isUuid, pick } from "@/lib/server/storefront";
-import { bytes, formatDate } from "@/lib/i18n";
+import { bytes, formatDate, n } from "@/lib/i18n";
 import { deliveryType, label } from "@/lib/status";
 import { AccountHeader, Card } from "@/components/store/account-ui";
 import { LessonPlayer } from "@/components/store/lesson-player";
@@ -59,7 +59,7 @@ export default async function LibraryItem({ params }: { params: Promise<{ produc
             <div className="flex flex-wrap items-center gap-5">
               <img src={mediaUrl(p.coverKey)} alt="" className="sf-thumb sf-thumb-lg" />
               <div className="min-w-[220px] flex-1">
-                <div className="mb-2 flex justify-between text-sm"><span>{t(`${completed} of ${lessons.length} lessons complete`, `${lessons.length}개 중 ${completed}개 완료`)}</span><b>{pct}%</b></div>
+                <div className="mb-2 flex justify-between text-sm"><span>{t(`${completed} of ${n(lessons.length, "lesson")} complete`, `${lessons.length}개 중 ${completed}개 완료`)}</span><b>{pct}%</b></div>
                 <div className="sf-progress" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={t("Course progress", "수강 진도")}><i style={{ width: `${pct}%` }} /></div>
                 <p className="!mt-2 text-[13px] text-[#6b7065]">{lessons.length === 0 ? t("The creator hasn’t published lessons yet.", "크리에이터가 아직 강의를 등록하지 않았습니다.") : nextLesson === -1 ? t("You’ve completed every lesson. Nice work!", "모든 강의를 완료했어요. 수고하셨습니다!") : t(`Up next: ${lessons[nextLesson].title}`, `다음 강의: ${lessons[nextLesson].title}`)}</p>
               </div>

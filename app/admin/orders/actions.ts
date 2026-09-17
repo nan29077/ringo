@@ -8,7 +8,7 @@ import { getDb } from "@/lib/server/db";
 import { run, type ActionResult } from "@/lib/server/action";
 import { audit } from "@/lib/server/audit";
 import { getT } from "@/lib/server/i18n-server";
-import { sendMail } from "@/lib/server/mail";
+import { recipientLang, sendTemplateMail } from "@/lib/server/mail";
 import { appOrigin } from "@/lib/server/request";
 import { formatMoney } from "@/lib/i18n";
 import { CommerceError, addOrderEvent, cancelPendingOrder, deliverOrder, getOrderForActor, markInProgress, refundOrder, rejectRefund } from "@/lib/server/commerce";
@@ -116,21 +116,19 @@ export async function adminResendReceipt(orderId: string): Promise<ActionResult>
     if (!o) throw new CommerceError("not_found");
     if (o.status !== "paid" && o.status !== "refunded") throw new CommerceError("invalid_state");
     const origin = await appOrigin();
-    const lines = [
-      `Hi ${o.buyerName},`,
-      "",
-      `Here is your receipt for order ${o.orderNo}.`,
-      "",
-      `Product: ${o.productTitle}`,
-      `Subtotal: ${formatMoney(o.subtotalCents, o.currency)}`,
-      ...(o.discountCents ? [`Discount: -${formatMoney(o.discountCents, o.currency)}${o.couponCode ? ` (${o.couponCode})` : ""}`] : []),
-      `Total paid: ${formatMoney(o.totalCents, o.currency)}`,
-      `Paid at: ${o.paidAt?.toISOString() ?? "-"}`,
-      ...(o.refundedCents ? [`Refunded: ${formatMoney(o.refundedCents, o.currency)} (${o.refundedAt?.toISOString() ?? ""})`] : []),
-      "",
-      `Order details: ${origin}/account/orders/${o.id}`,
-    ];
-    await sendMail(db, o.buyerEmail, `Receipt for your Ringo order ${o.orderNo}`, lines.join("\n"), "order_receipt");
+    await sendTemplateMail(db, o.buyerEmail, "order_receipt", await recipientLang(db, { userId: o.buyerId }), {
+      name: o.buyerName,
+      orderNo: o.orderNo,
+      product: o.productTitle,
+      subtotal: formatMoney(o.subtotalCents, o.currency),
+      discount: o.discountCents ? formatMoney(o.discountCents, o.currency) : null,
+      coupon: o.couponCode,
+      total: formatMoney(o.totalCents, o.currency),
+      paidAt: o.paidAt?.toISOString() ?? "-",
+      refunded: o.refundedCents ? formatMoney(o.refundedCents, o.currency) : null,
+      refundedAt: o.refundedAt?.toISOString() ?? null,
+      orderUrl: `${origin}/account/orders/${o.id}`,
+    });
     await addOrderEvent(db, o.id, "receipt_resent", `Receipt re-sent to ${o.buyerEmail}`, viewer);
     await audit(db, viewer, "order.receipt_resend", "order", o.id, { to: o.buyerEmail });
     return { ok: true, message: t(`Receipt sent to ${o.buyerEmail}.`, `${o.buyerEmail}로 영수증을 다시 보냈습니다.`) };

@@ -35,7 +35,8 @@
 | `links.ts` | deep links (`saveLink`, `toggleLink`, `linkStats`), attribution cookie |
 | `payments/` | provider adapters: `test` sandbox, `pearpay` / `nextpay` skeletons (need PG API spec) |
 | `storage.ts` | local disk (`.data/uploads`) or S3 (`S3_BUCKET`); `mediaUrl(key)` for covers/banners |
-| `mail.ts` | SMTP (e.g. SES) or outbox log (`mail_outbox`) |
+| `mail.ts` | SMTP (e.g. SES) or outbox log (`mail_outbox`); `sendTemplateMail(db, to, template, lang, vars)` + `recipientLang` |
+| `mail-templates.ts` | The 12 transactional emails in English (default) and Korean, plain text |
 | `audit.ts` | `audit(db, viewer, action, targetType, targetId, data)`, `logError` |
 | `settings.ts` | site settings stored in `settings` table (`getSettings`) |
 | `analytics.ts` | `dailySales`, `salesSummary` |

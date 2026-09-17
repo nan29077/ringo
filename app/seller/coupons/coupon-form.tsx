@@ -49,6 +49,11 @@ export function CouponForm({ coupon, products, currency, startsValue, endsValue 
         </div>
       </Panel>
       <Panel title={t("Discount", "할인")}>
+        <div className="mb-4">
+          <Notice>
+            {t("The discount comes out of your payout: the marketplace fee is charged on the list price, not on the discounted amount.", "할인액은 판매자 정산액에서 차감됩니다. 플랫폼 수수료는 할인 전 정가를 기준으로 부과됩니다.")}
+          </Notice>
+        </div>
         <div className="grid gap-4 md:grid-cols-4">
           <Field className="content-start" label={t("Type", "할인 방식")} required>
             <select name={locked ? undefined : "kind"} className="rc-select" value={kind} onChange={(e) => setKind(e.target.value as "percent" | "fixed")} disabled={locked}>

@@ -49,6 +49,11 @@ export function AdminCouponForm({ coupon, products, currency, startsValue, endsV
         </div>
       </Panel>
       <Panel title={t("Discount", "할인")}>
+        <div className="mb-4">
+          <Notice tone="warn">
+            {t("The discount is borne by the seller: the commission is charged on the list price, so a coupon does not reduce the marketplace fee.", "할인액은 판매자가 부담합니다. 수수료는 할인 전 정가 기준으로 부과되므로 쿠폰을 써도 플랫폼 수수료는 줄지 않습니다.")}
+          </Notice>
+        </div>
         <div className="grid gap-4 md:grid-cols-4">
           <Field className="content-start" label={t("Type", "할인 방식")} required>
             <select name={locked ? undefined : "kind"} className="rc-select" value={kind} onChange={(e) => setKind(e.target.value as "percent" | "fixed")} disabled={locked}>

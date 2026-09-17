@@ -7,8 +7,9 @@ import { createSession, destroyOtherSessions, getViewer, isSafeNext } from "@/li
 import { hashPassword, passwordProblems, randomToken, sha256, verifyPassword } from "@/lib/server/password";
 import { ActionError, run, type ActionResult } from "@/lib/server/action";
 import { appOrigin, rateLimit, rateLimitReset, requestMeta } from "@/lib/server/request";
-import { sendMail } from "@/lib/server/mail";
+import { sendTemplateMail } from "@/lib/server/mail";
 import { getT } from "@/lib/server/i18n-server";
+import type { Lang } from "@/lib/i18n";
 import { audit } from "@/lib/server/audit";
 import { DEMO_LOGIN_ACCOUNTS, demoLoginEnabled, type DemoRole } from "@/lib/server/demo-login";
 
@@ -76,18 +77,18 @@ export async function signup(fd: FormData): Promise<ActionResult> {
       locale: lang,
       marketingOptIn: input.marketing === "on",
     }).returning();
-    await sendVerification(user.id, user.email, user.name);
+    await sendVerification(user.id, user.email, user.name, user.locale);
     await createSession(db, user.id);
     return { ok: true, redirect: isSafeNext(input.next) ? input.next : "/account" };
   });
 }
 
-async function sendVerification(userId: string, to: string, name: string) {
+async function sendVerification(userId: string, to: string, name: string, locale: Lang) {
   const db = await getDb();
   const token = randomToken();
   await db.insert(authTokens).values({ userId, type: "verify_email", tokenHash: sha256(token), expiresAt: new Date(Date.now() + 3 * 86400000) });
   const origin = await appOrigin();
-  await sendMail(db, to, "Verify your Ringo email", `Hi ${name},\n\nConfirm your email address to secure your account:\n${origin}/verify-email?token=${token}\n\nThis link expires in 3 days.`, "verify_email");
+  await sendTemplateMail(db, to, "verify_email", locale, { name, url: `${origin}/verify-email?token=${token}` });
 }
 
 export async function resendVerification(): Promise<ActionResult> {
@@ -95,7 +96,7 @@ export async function resendVerification(): Promise<ActionResult> {
     const viewer = await getViewer();
     if (!viewer) throw new ActionError("forbidden");
     if (!rateLimit(`verify:${viewer.user.id}`, 3, 60 * 60000)) throw new ActionError("too_many_attempts");
-    await sendVerification(viewer.user.id, viewer.user.email, viewer.user.name);
+    await sendVerification(viewer.user.id, viewer.user.email, viewer.user.name, viewer.user.locale);
     const { t } = await getT();
     return { ok: true, message: t("Verification email sent.", "인증 메일을 보냈습니다.") };
   });
@@ -112,7 +113,7 @@ export async function requestPasswordReset(fd: FormData): Promise<ActionResult> 
       const token = randomToken();
       await db.insert(authTokens).values({ userId: user.id, type: "reset_password", tokenHash: sha256(token), expiresAt: new Date(Date.now() + 3600000) });
       const origin = await appOrigin();
-      await sendMail(db, user.email, "Reset your Ringo password", `Hi ${user.name},\n\nReset your password using this link (valid for 1 hour):\n${origin}/reset-password?token=${token}\n\nIf you did not request this, you can ignore this email.`, "reset_password");
+      await sendTemplateMail(db, user.email, "reset_password", user.locale, { name: user.name, url: `${origin}/reset-password?token=${token}` });
     }
     const { t } = await getT();
     return { ok: true, message: t("If an account exists, we sent a reset link.", "가입된 이메일이라면 재설정 링크를 보냈습니다.") };
