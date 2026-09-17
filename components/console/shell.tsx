@@ -110,7 +110,7 @@ export function ConsoleShell({ groups, workspace, user, children }: {
           </label>
         </div>
         {nav}
-        <div className="shrink-0 space-y-3 border-t border-[#eceef2] bg-[#fbfbfc] px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:hidden">
+        <div className="shrink-0 space-y-3 border-t border-[#eceef2] bg-[#fbfbfc] px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {mainLink}
           {profile}
         </div>
@@ -120,9 +120,7 @@ export function ConsoleShell({ groups, workspace, user, children }: {
         <header className="rc-topbar">
           <button className="lg:hidden" aria-label={t("Open menu", "메뉴 열기")} onClick={() => setOpen(true)}><Menu className="size-5" /></button>
           <div className="flex-1" />
-          <div className="hidden lg:block">{mainLink}</div>
           <LanguageToggle />
-          <div className="hidden border-l border-[#eceef2] pl-3 lg:block">{profile}</div>
         </header>
         <main className="rc-content">{children}</main>
       </div>
