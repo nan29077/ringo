@@ -10,7 +10,7 @@ import { inquiryStatus } from "@/lib/status";
 import { PageHeader, Panel, DataTable, EmptyState, Badge, StatCard } from "@/components/console/ui";
 import { FilterBar, Pagination } from "@/components/console/filters";
 import { StatusBadge } from "@/components/console/status-badge";
-import { inquiryCategories } from "./labels";
+import { inquiryCategories } from "@/lib/inquiry-categories";
 
 export const metadata = { title: "Inquiries" };
 

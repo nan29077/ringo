@@ -103,7 +103,7 @@ export async function adminSaveProduct(fd: FormData): Promise<ActionResult> {
     const raw = Object.fromEntries(fd);
     delete raw.sellerId;
     const product = await saveProduct(db, viewer, raw, { productId: id, sellerId });
-    await audit(db, viewer, id ? "product.update" : "product.create", "product", product.id, id ? { title: product.titleEn } : { title: product.titleEn, sellerId });
+    await audit(db, viewer, id ? "product.update" : "product.create", "product", product.id, id ? { title: product.titleEn, changed: (product as { changes?: unknown }).changes } : { title: product.titleEn, sellerId });
     return id
       ? { ok: true, message: t("Saved.", "저장했습니다.") }
       : { ok: true, message: t("Product created as a draft.", "상품을 임시저장 상태로 등록했습니다."), redirect: `/admin/products/${product.id}` };

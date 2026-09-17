@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { count, desc, eq, sql } from "drizzle-orm";
+import { count, desc, eq, inArray, not, sql } from "drizzle-orm";
 import * as s from "@/db/schema";
 import { requireAdmin } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
 import { listParams, type SP } from "@/lib/server/list";
 import { enumOpts, payoutOverview, settlementWhere } from "@/lib/server/admin-ops";
-import { isAdjustmentSettlement } from "@/lib/server/commerce";
+import { adjustmentSettlementWhere, isAdjustmentSettlement } from "@/lib/server/commerce";
 import { zonedDateKey } from "@/lib/time";
 import { formatDate, formatMoney } from "@/lib/i18n";
 import { sellerStatus, settlementStatus } from "@/lib/status";
@@ -27,10 +27,12 @@ export default async function AdminSettlements({ searchParams }: { searchParams:
   const cond = settlementWhere(sp);
   const [overview, sellerRows, rows, [{ total }], totals] = await Promise.all([
     payoutOverview(db),
-    db.select({ id: s.sellers.id, name: s.sellers.displayName }).from(s.sellers).orderBy(s.sellers.displayName),
+    db.select({ id: s.sellers.id, name: s.sellers.displayName }).from(s.sellers).where(inArray(s.sellers.status, ["active", "suspended"])).orderBy(s.sellers.displayName),
     db.select({ st: s.settlements, seller: s.sellers.displayName }).from(s.settlements).innerJoin(s.sellers, eq(s.sellers.id, s.settlements.sellerId)).where(cond).orderBy(desc(s.settlements.createdAt)).limit(size).offset(offset),
     db.select({ total: count() }).from(s.settlements).innerJoin(s.sellers, eq(s.sellers.id, s.settlements.sellerId)).where(cond),
-    db.select({ status: s.settlements.status, n: sql<number>`count(*)::int`, cents: sql<number>`coalesce(sum(${s.settlements.netCents}),0)::int` }).from(s.settlements).groupBy(s.settlements.status),
+    // Refund deductions are negative rows that ride along with a batch; counting them as payouts would
+    // understate "누적 지급액" and inflate the settlement counts, so they are excluded here.
+    db.select({ status: s.settlements.status, n: sql<number>`count(*)::int`, cents: sql<number>`coalesce(sum(${s.settlements.netCents}),0)::int` }).from(s.settlements).where(not(adjustmentSettlementWhere)).groupBy(s.settlements.status),
   ]);
   const { settings } = overview;
   const cur = settings.site.currency;
@@ -110,8 +112,8 @@ export default async function AdminSettlements({ searchParams }: { searchParams:
               <td className="whitespace-nowrap">{m(st.grossCents, st.currency)}</td>
               <td className="whitespace-nowrap text-[#6b6e78]">{m(-st.commissionCents, st.currency)}</td>
               <td className="whitespace-nowrap font-semibold">{m(st.netCents, st.currency)}</td>
-              <td><StatusBadge map={settlementStatus} value={st.status} lang={lang} />{st.paidAt && <div className="text-[11px] text-[#8a8d96]">{formatDate(st.paidAt, lang)}</div>}</td>
-              <td className="max-w-[160px] truncate text-xs">{st.reference ?? "—"}</td>
+              <td>{isAdjustmentSettlement(st) ? <Badge tone={st.status === "paid" ? "gray" : "amber"}>{st.status === "paid" ? t("Deducted", "차감 완료") : t("Deducted from next payout", "다음 정산에서 차감")}</Badge> : <><StatusBadge map={settlementStatus} value={st.status} lang={lang} />{st.paidAt && <div className="text-[11px] text-[#8a8d96]">{formatDate(st.paidAt, lang)}</div>}</>}</td>
+              <td className="max-w-[160px] truncate text-xs">{isAdjustmentSettlement(st) ? (st.status === "paid" ? t("Applied to a payout", "정산에 반영됨") : "—") : st.reference ?? "—"}</td>
               <td className="text-right">
                 {st.status === "pending" && isAdjustmentSettlement(st) ? (
                   <div className="flex items-start justify-end gap-1">

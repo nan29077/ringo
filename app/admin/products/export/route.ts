@@ -1,4 +1,5 @@
 import { desc, eq } from "drizzle-orm";
+import { zonedDateKey, zonedStamp } from "@/lib/time";
 import * as s from "@/db/schema";
 import { requireAdmin } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
@@ -22,12 +23,12 @@ export async function GET(request: Request) {
     .orderBy(desc(s.products.createdAt))
     .limit(20000);
   await audit(db, viewer, "product.export", "product", undefined, { filters: sp, rows: rows.length });
-  return csvResponse(`ringo-admin-products-${new Date().toISOString().slice(0, 10)}.csv`, [
+  return csvResponse(`ringo-admin-products-${zonedDateKey()}.csv`, [
     ["id", "slug", "title_en", "title_ko", "seller", "category", "delivery_type", "status", "visible", "featured", "price", "compare_at", "currency", "sales", "rating", "reject_reason", "created_at", "submitted_at", "published_at"],
     ...rows.map(({ p, seller, category }) => [
       p.id, p.slug, p.titleEn, p.titleKo, seller, category, p.deliveryType, p.status, p.visible ? "Y" : "N", p.featured ? "Y" : "N",
       (p.priceCents / 100).toFixed(2), p.compareAtCents != null ? (p.compareAtCents / 100).toFixed(2) : "", p.currency, p.salesCount,
-      p.ratingAvg != null ? (p.ratingAvg / 10).toFixed(1) : "", p.rejectReason ?? "", p.createdAt.toISOString(), p.submittedAt?.toISOString() ?? "", p.publishedAt?.toISOString() ?? "",
+      p.ratingAvg != null ? (p.ratingAvg / 10).toFixed(1) : "", p.rejectReason ?? "", zonedStamp(p.createdAt), zonedStamp(p.submittedAt), zonedStamp(p.publishedAt),
     ]),
   ]);
 }

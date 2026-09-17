@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import * as s from "@/db/schema";
 import { requireAdmin } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
@@ -21,7 +21,9 @@ export default async function AdminRefunds({ searchParams }: { searchParams: Pro
   const settings = await getSettings(db);
   const open = and(eq(s.orders.status, "paid"), eq(s.orders.refundStatus, "requested"));
   const done = inArray(s.orders.refundStatus, ["refunded", "rejected"]);
-  const select = () => db.select({ o: s.orders, seller: s.sellers.displayName, provider: orderProviderSql }).from(s.orders).innerJoin(s.sellers, eq(s.sellers.id, s.orders.sellerId));
+  // The reason an admin typed lives on the refund row, not on the order, so it is pulled in here.
+  const refundReasonSql = sql<string | null>`(select r.reason from ${s.refunds} r where r.order_id = ${s.orders.id} and r.status = 'succeeded' order by r.created_at desc limit 1)`;
+  const select = () => db.select({ o: s.orders, seller: s.sellers.displayName, provider: orderProviderSql, processedReason: refundReasonSql }).from(s.orders).innerJoin(s.sellers, eq(s.sellers.id, s.orders.sellerId));
   const [requested, recent, [{ total }]] = await Promise.all([
     select().where(open).orderBy(asc(s.orders.updatedAt)).limit(200),
     select().where(done).orderBy(desc(s.orders.updatedAt)).limit(size).offset(offset),

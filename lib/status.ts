@@ -84,6 +84,9 @@ export const orderEventType: Record<string, Entry> = {
   refund_rejected: m("Refund declined", "환불 거절", "red"),
   refunded: m("Refunded", "환불 완료", "red"),
   settlement_adjusted: m("Settlement adjusted", "정산 조정", "amber"),
+  deliverable_uploaded: m("Delivery file uploaded", "납품 파일 업로드", "blue"),
+  admin_grant: m("Granted by an operator", "운영자 수동 지급", "violet"),
+  receipt_resent: m("Receipt re-sent", "영수증 재발송", "gray"),
   note: m("Admin note", "관리자 메모", "gray"),
 };
 

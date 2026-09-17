@@ -145,7 +145,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<SP>
         </div>
         <div className="rh-results">
           <span aria-live="polite">
-            {q ? t(`${n(catalog.total, "result")} for “${q}”`, `“${q}” 검색 결과 ${catalog.total}개`) : t(`${n(catalog.total, "digital good")}`, `디지털 콘텐츠 ${catalog.total}개`)}
+            {catalog.rows.length === 0 && catalog.total > 0
+              ? t("No products on this page", "이 페이지에는 상품이 없습니다")
+              : q
+                ? t(`${n(catalog.total, "result")} for “${q}”`, `“${q}” 검색 결과 ${catalog.total}개`)
+                : t(`${n(catalog.total, "digital good")}`, `디지털 콘텐츠 ${catalog.total}개`)}
             {(q || category) && <Link href="/#catalog" className="ml-3 underline underline-offset-2">{t("Clear filters", "필터 초기화")}</Link>}
           </span>
           <SortSelect value={catalog.sort} />

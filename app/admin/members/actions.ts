@@ -1,5 +1,6 @@
 "use server";
 import { eq } from "drizzle-orm";
+import { zonedDateKey } from "@/lib/time";
 import { z } from "zod";
 import * as s from "@/db/schema";
 import { requireAdmin } from "@/lib/server/auth";
@@ -33,7 +34,7 @@ export async function setMemberStatus(fd: FormData): Promise<ActionResult> {
       if (!input.reason) throw new ActionError("reason_required");
       if (user.role === "admin" && (await activeAdminCount(db, user.id)) < 1) return { ok: false, error: t("At least one active admin is required.", "활성 관리자가 최소 1명 필요합니다.") };
     }
-    const memo = input.reason ? `${new Date().toISOString().slice(0, 10)} ${input.status} by ${viewer.user.email}: ${input.reason}\n${user.adminMemo ?? ""}`.slice(0, 4000) : user.adminMemo;
+    const memo = input.reason ? `${zonedDateKey()} ${input.status} by ${viewer.user.email}: ${input.reason}\n${user.adminMemo ?? ""}`.slice(0, 4000) : user.adminMemo;
     await db.transaction(async (tx) => {
       await tx.update(s.users).set({ status: input.status, adminMemo: memo, updatedAt: new Date() }).where(eq(s.users.id, user.id));
       if (input.status === "suspended") await tx.delete(s.sessions).where(eq(s.sessions.userId, user.id));

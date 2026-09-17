@@ -81,6 +81,10 @@ export async function adminSetProvider(providerId: string, enable: boolean): Pro
     const current = await getSettings(db);
     const before = current.payments.enabledProviders;
     const enabledProviders = on ? Array.from(new Set([...before, id])) : before.filter((p) => p !== id);
+    // Turning off the last usable method closes checkout for every buyer, so it takes a deliberate step.
+    if (!on && !providerStatus().some((p) => p.available && enabledProviders.includes(p.id))) {
+      throw new ActionError(t("This is the only payment method buyers can use. Enable another one first, or buyers will not be able to pay.", "구매자가 사용할 수 있는 마지막 결제 수단입니다. 다른 결제 수단을 먼저 사용 설정하세요. 그렇지 않으면 결제가 불가능해집니다."));
+    }
     await saveSettingsSection(db, "payments", { ...current.payments, enabledProviders }, viewer.user.id);
     await audit(db, viewer, "settings.payments", "settings", "payments", { provider: id, enabled: on, before, after: enabledProviders });
     revalidatePath("/", "layout");

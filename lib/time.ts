@@ -72,6 +72,14 @@ export function zonedDateKey(date = new Date(), tz = SITE_TZ) {
   return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
 }
 
+/** "YYYY-MM-DD HH:mm" in the site timezone — the timestamp format used in CSV exports and admin memos. */
+export function zonedStamp(d: Date | null | undefined, tz = SITE_TZ) {
+  if (!d) return "";
+  const p = zonedParts(d, tz);
+  const pad = (x: number) => String(x).padStart(2, "0");
+  return `${p.year}-${pad(p.month)}-${pad(p.day)} ${pad(p.hour)}:${pad(p.minute)}`;
+}
+
 /** Date → value for <input type="datetime-local">, rendered in the site timezone. */
 export function toZonedInput(d: Date | null | undefined, tz = SITE_TZ) {
   if (!d) return "";

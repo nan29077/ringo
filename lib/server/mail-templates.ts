@@ -1,5 +1,5 @@
 import "server-only";
-import type { Lang } from "../i18n";
+import { n, type Lang } from "../i18n";
 
 /**
  * Transactional email copy, in English (default for buyers and sellers) and Korean (operators).
@@ -57,7 +57,7 @@ export const mailTemplates = {
       },
     )) as Template<{ name: string; url: string; byOperator?: boolean }>,
 
-  order_paid_buyer: ((v: { name: string; orderNo: string; product: string; total: string; libraryUrl: string }, lang) =>
+  order_paid_buyer: ((v: { name: string; orderNo: string; product: string; subtotal?: string | null; discount?: string | null; coupon?: string | null; total: string; libraryUrl: string }, lang) =>
     pick(
       lang,
       {
@@ -66,6 +66,7 @@ export const mailTemplates = {
           `Hi ${v.name},`,
           "",
           `Thank you for your purchase of "${v.product}" (${v.total}).`,
+          v.discount && v.subtotal ? `Price ${v.subtotal} − discount ${v.discount}${v.coupon ? ` (${v.coupon})` : ""} = ${v.total}` : null,
           `Open your library: ${v.libraryUrl}`,
           "",
           `Order: ${v.orderNo}`,
@@ -77,12 +78,13 @@ export const mailTemplates = {
           `${v.name}님, 안녕하세요.`,
           "",
           `"${v.product}" 구매가 완료되었습니다 (${v.total}).`,
+          v.discount && v.subtotal ? `상품 금액 ${v.subtotal} − 할인 ${v.discount}${v.coupon ? ` (${v.coupon})` : ""} = ${v.total}` : null,
           `라이브러리에서 바로 이용하세요: ${v.libraryUrl}`,
           "",
           `주문번호: ${v.orderNo}`,
         ),
       },
-    )) as Template<{ name: string; orderNo: string; product: string; total: string; libraryUrl: string }>,
+    )) as Template<{ name: string; orderNo: string; product: string; subtotal?: string | null; discount?: string | null; coupon?: string | null; total: string; libraryUrl: string }>,
 
   order_paid_seller: ((v: { store: string; orderNo: string; product: string; net: string; orderUrl: string }, lang) =>
     pick(
@@ -183,7 +185,7 @@ export const mailTemplates = {
       lang,
       {
         subject: "Ringo payout sent",
-        text: lines(`A payout of ${v.amount} for ${v.orderCount} orders has been sent.`, `Reference: ${v.reference}`),
+        text: lines(`A payout of ${v.amount} for ${n(v.orderCount, "order")} has been sent.`, `Reference: ${v.reference}`),
       },
       {
         subject: "링고 정산 지급 완료",

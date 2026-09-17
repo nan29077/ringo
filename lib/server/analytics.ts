@@ -48,9 +48,11 @@ export async function salesSummary(db: DB, from: Date, sellerId?: string) {
     })
     .from(s.orders)
     .where(and(gte(s.orders.paidAt, from), sellerWhere));
+  // Only refunds of orders that were also paid inside the period, so "net after refunds" cannot subtract a
+  // payout that was never added to this period's `paid` figures.
   const [refund] = await db
     .select({ cents: sql<number>`coalesce(sum(${s.orders.refundedCents}),0)::int`, count: sql<number>`count(*)::int`, net: sql<number>`coalesce(sum(${s.orders.sellerNetCents}),0)::int`, commission: sql<number>`coalesce(sum(${s.orders.commissionCents}),0)::int` })
     .from(s.orders)
-    .where(and(gte(s.orders.refundedAt, from), sellerWhere));
+    .where(and(gte(s.orders.refundedAt, from), gte(s.orders.paidAt, from), sellerWhere));
   return { ...paid, refundCents: refund.cents, refundCount: refund.count, netAfterRefunds: paid.net - refund.net, commissionAfterRefunds: paid.commission - refund.commission, revenueAfterRefunds: paid.gross - refund.cents };
 }

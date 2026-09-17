@@ -74,7 +74,7 @@ export function buyerOrderAgg(db: DB) {
     .select({
       buyerId: s.orders.buyerId,
       orders: sql<number>`count(*)::int`.as("orders_n"),
-      paidOrders: sql<number>`count(*) filter (where ${s.orders.paidAt} is not null)::int`.as("paid_n"),
+      paidOrders: sql<number>`count(*) filter (where ${s.orders.status} = 'paid')::int`.as("paid_n"),
       paidCents: sql<number>`coalesce(sum(${s.orders.totalCents}) filter (where ${s.orders.status} = 'paid'),0)::int`.as("paid_cents"),
     })
     .from(s.orders)

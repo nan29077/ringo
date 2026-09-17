@@ -27,7 +27,15 @@ export function FilterBar({ fields, exportHref }: { fields: FilterField[]; expor
   const path = usePathname();
   const params = useSearchParams();
   const [pending, start] = useTransition();
+  // Keyed by the query string so browsing back/forward, or a link that carries filters, re-seeds the inputs
+  // instead of leaving them showing stale values while the list is filtered.
+  const query = params.toString();
+  const [seeded, setSeeded] = useState(query);
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(params.entries()));
+  if (seeded !== query) {
+    setSeeded(query);
+    setValues(Object.fromEntries(params.entries()));
+  }
   const set = (k: string, v: string) => setValues((prev) => ({ ...prev, [k]: v }));
   const apply = (next: Record<string, string>) => {
     const q = new URLSearchParams();

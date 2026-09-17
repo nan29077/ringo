@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { zonedStamp } from "@/lib/time";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import * as s from "@/db/schema";
@@ -124,9 +125,9 @@ export async function adminResendReceipt(orderId: string): Promise<ActionResult>
       discount: o.discountCents ? formatMoney(o.discountCents, o.currency) : null,
       coupon: o.couponCode,
       total: formatMoney(o.totalCents, o.currency),
-      paidAt: o.paidAt?.toISOString() ?? "-",
+      paidAt: zonedStamp(o.paidAt) || "-",
       refunded: o.refundedCents ? formatMoney(o.refundedCents, o.currency) : null,
-      refundedAt: o.refundedAt?.toISOString() ?? null,
+      refundedAt: zonedStamp(o.refundedAt) || null,
       orderUrl: `${origin}/account/orders/${o.id}`,
     });
     await addOrderEvent(db, o.id, "receipt_resent", `Receipt re-sent to ${o.buyerEmail}`, viewer);

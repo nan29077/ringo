@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import * as s from "@/db/schema";
 import { requireSeller } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
+import { isUuid } from "@/lib/server/seller-center";
 import { getT } from "@/lib/server/i18n-server";
 import { likeQ, listParams, one, type SP } from "@/lib/server/list";
 import { linkState, linkStats } from "@/lib/server/links";
@@ -33,7 +34,8 @@ export default async function SellerLinks({ searchParams }: { searchParams: Prom
   if (state === "paused") where.push(eq(s.deepLinks.status, "paused"));
   if (state === "active") where.push(eq(s.deepLinks.status, "active"), or(isNull(s.deepLinks.expiresAt), gt(s.deepLinks.expiresAt, new Date())));
   if (state === "expired") where.push(eq(s.deepLinks.status, "active"), lte(s.deepLinks.expiresAt, new Date()));
-  if (one(sp, "product")) where.push(eq(s.deepLinks.productId, one(sp, "product")));
+  // A non-UUID value would make Postgres reject the whole query, so an unusable filter is ignored.
+  if (isUuid(one(sp, "product"))) where.push(eq(s.deepLinks.productId, one(sp, "product")));
   const cond = and(...where);
 
   const [rows, [{ total }], products, [totals]] = await Promise.all([

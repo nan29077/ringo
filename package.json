@@ -20,6 +20,7 @@
     "test:mail": "node tests/tools/mail-language.mjs",
     "test:coupon": "node tests/tools/coupon-math.mjs",
     "test:ui": "node tests/tools/ui-regress.mjs",
+    "test:fixes": "node tests/tools/fix-verify.mjs",
     "test:security": "node tests/tools/security-regress.mjs",
     "test:crawl": "node tests/tools/crawl.mjs admin@ringo.local /admin /admin 300"
   },

@@ -7,6 +7,7 @@ import { requireViewer } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
 import { getSettings } from "@/lib/server/settings";
+import { expireOrderIfStale } from "@/lib/server/commerce";
 import { mediaUrl } from "@/lib/server/storage";
 import { getProvider } from "@/lib/server/payments";
 import { one, type SP } from "@/lib/server/list";
@@ -60,7 +61,10 @@ export default async function OrderDetail({ params, searchParams }: { params: Pr
     .innerJoin(s.sellers, eq(s.sellers.id, s.orders.sellerId))
     .where(and(eq(s.orders.id, id), eq(s.orders.buyerId, viewer.user.id)));
   if (!row) notFound();
-  const { order: o, product: p, seller } = row;
+  const { order: row_o, product: p, seller } = row;
+  // Close a pending order whose payment window has passed, so the page never offers a dead payment button.
+  const expired = await expireOrderIfStale(db, row_o, viewer);
+  const o = expired && row_o.status === "pending_payment" ? { ...row_o, status: "expired" as const } : row_o;
   const [settings, events, payments, deliverables, [review], [entitlement]] = await Promise.all([
     getSettings(db),
     db.select().from(s.orderEvents).where(eq(s.orderEvents.orderId, o.id)).orderBy(desc(s.orderEvents.createdAt), desc(s.orderEvents.id)),
@@ -79,6 +83,7 @@ export default async function OrderDetail({ params, searchParams }: { params: Pr
   const canReview = o.status === "paid" && (!service || o.fulfillmentStatus === "delivered");
   const visibleEvents = events.map((e) => ({ ...e, label: eventLabel(e.type, t) })).filter((e) => e.label);
   const justPaid = one(sp, "paid") === "1";
+  const paidOrRefunded = o.status === "paid" || o.status === "refunded";
   const title = pick(lang, p.titleEn, p.titleKo) || o.productTitle;
 
   return (
@@ -106,7 +111,7 @@ export default async function OrderDetail({ params, searchParams }: { params: Pr
       {justPaid && o.status === "pending_payment" && (
         <div className="sf-notice sf-notice-info mb-5" role="status"><Clock aria-hidden />{t("We’re waiting for the payment provider to confirm your payment. Refresh this page in a moment.", "결제사의 결제 확인을 기다리고 있습니다. 잠시 후 새로고침해 주세요.")}</div>
       )}
-      {one(sp, "expired") === "1" && o.status === "expired" && (
+      {o.status === "expired" && (
         <div className="sf-notice sf-notice-warn mb-5" role="status"><Clock aria-hidden />{t("The payment window for this order has passed, so it was cancelled. Nothing was charged — you can order the product again.", "결제 가능 시간이 지나 주문이 취소되었습니다. 결제된 금액은 없으며, 상품을 다시 주문할 수 있습니다.")}</div>
       )}
 
@@ -207,7 +212,7 @@ export default async function OrderDetail({ params, searchParams }: { params: Pr
         </div>
 
         <aside className="sf-card sf-card-pad xl:sticky xl:top-5" aria-labelledby="receipt-title">
-          <h2 id="receipt-title" className="sf-h2 !mb-4">{t("Receipt", "영수증")}</h2>
+          <h2 id="receipt-title" className="sf-h2 !mb-4">{paidOrRefunded ? t("Receipt", "영수증") : t("Order summary", "주문 내역")}</h2>
           <dl className="sf-dl !grid-cols-[max-content_1fr] !gap-x-4 text-[14px]">
             <dt>{t("Order no.", "주문번호")}</dt><dd className="font-mono text-[13px]">{o.orderNo}</dd>
             <dt>{t("Date", "주문일")}</dt><dd>{formatDate(o.createdAt, lang, true)}</dd>
@@ -216,12 +221,16 @@ export default async function OrderDetail({ params, searchParams }: { params: Pr
             <dt>{t("Payment", "결제 수단")}</dt><dd>{providerLabel(payment?.provider, t)}{payment?.method && payment.method !== payment.provider ? ` · ${payment.method}` : ""}</dd>
           </dl>
           <div className="mt-5 border-t border-[#efefeb] pt-3">
-            <div className="sf-line"><span className="min-w-0 truncate">{o.productTitle}</span><span>{money(o.subtotalCents)}</span></div>
+            <div className="sf-line"><span className="min-w-0 truncate">{title}</span><span>{money(o.subtotalCents)}</span></div>
             {o.discountCents > 0 && <div className="sf-line text-[#1f6a3d]"><span>{t("Coupon", "쿠폰")}{o.couponCode ? ` ${o.couponCode}` : ""}</span><span>−{money(o.discountCents)}</span></div>}
             <div className="sf-line sf-line-total"><span>{t("Total", "합계")}</span><span>{money(o.totalCents)}</span></div>
             {o.refundedCents > 0 && <div className="sf-line text-[#6b7065]"><span>{t("Refunded", "환불")}</span><span>−{money(o.refundedCents)}</span></div>}
           </div>
-          <p className="!mt-4 text-[12px] leading-relaxed text-[#7a7e73]">{t(`Sold by ${seller.displayName} via Ringo. Receipt emailed to ${o.buyerEmail}.`, `판매자 ${seller.displayName} · 링고를 통해 판매. 영수증은 ${o.buyerEmail}(으)로 발송됩니다.`)}</p>
+          <p className="!mt-4 text-[12px] leading-relaxed text-[#7a7e73]">
+            {paidOrRefunded
+              ? t(`Sold by ${seller.displayName} via Ringo. Receipt emailed to ${o.buyerEmail}.`, `판매자 ${seller.displayName} · 링고를 통해 판매. 영수증은 ${o.buyerEmail}(으)로 발송되었습니다.`)
+              : t(`Sold by ${seller.displayName} via Ringo. A receipt is emailed once the payment completes.`, `판매자 ${seller.displayName} · 링고를 통해 판매. 영수증은 결제가 완료되면 발송됩니다.`)}
+          </p>
         </aside>
       </div>
     </>

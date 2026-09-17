@@ -40,7 +40,10 @@ export function likeQ(q: string) {
 
 export function csvCell(value: unknown) {
   let s = String(value ?? "");
-  if (/^[=+@\-\t\r]/.test(s)) s = "'" + s;
+  // Formula injection guard. A plain negative number (-58.50) is left alone so spreadsheets still sum it;
+  // only a leading "-" followed by something that is not a number can start a formula.
+  const numeric = /^-?\d+(\.\d+)?$/.test(s);
+  if (!numeric && /^[=+@\-\t\r]/.test(s)) s = "'" + s;
   return '"' + s.replace(/"/g, '""') + '"';
 }
 

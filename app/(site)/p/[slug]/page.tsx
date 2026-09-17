@@ -172,7 +172,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
             {service && <li><CalendarClock aria-hidden />{t(`Delivered within ${deliveryDays} days of payment`, `결제 후 ${deliveryDays}일 이내 납품`)}</li>}
             {service && <li><FileText aria-hidden />{t("You’ll describe your request (brief) at checkout", "결제 단계에서 제작 요청 내용을 작성합니다")}</li>}
             {p.formatLabel && <li><BookOpen aria-hidden />{p.formatLabel}</li>}
-            <li><RotateCcw aria-hidden />{t(`Refund requests accepted within ${settings.commerce.refundWindowDays} days`, `${settings.commerce.refundWindowDays}일 이내 환불 요청 가능`)}</li>
+            <li><RotateCcw aria-hidden />{t(`Refund requests accepted within ${n(settings.commerce.refundWindowDays, "day")}`, `${settings.commerce.refundWindowDays}일 이내 환불 요청 가능`)}</li>
           </ul>
         </div>
       </div>

@@ -14,7 +14,7 @@ import { CommerceError, validateCoupon } from "@/lib/server/commerce";
 import { errorMessage } from "@/lib/server/action";
 import { paymentOptions } from "@/lib/server/checkout";
 import { activeEntitlement, isPurchasable, pick, productBySlug } from "@/lib/server/storefront";
-import { formatMoney } from "@/lib/i18n";
+import { formatMoney, n } from "@/lib/i18n";
 import { label, deliveryType } from "@/lib/status";
 import { BusyButton, RedirectForm } from "@/components/store/redirect-form";
 import { PaymentMethods } from "./payment-methods";
@@ -164,7 +164,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
               <label className="sf-check">
                 <input type="checkbox" name="terms" required />
                 <span>
-                  {t("I agree to the ", "")}<Link href="/terms" target="_blank" className="sf-link">{t("Terms of Service", "이용약관")}</Link>{t(" and ", " 및 ")}<Link href="/privacy" target="_blank" className="sf-link">{t("Privacy Policy", "개인정보 처리방침")}</Link>{t(`. I understand digital content is available immediately, and refunds can be requested within ${settings.commerce.refundWindowDays} days.`, `에 동의합니다. 디지털 콘텐츠는 결제 즉시 제공되며, 환불은 ${settings.commerce.refundWindowDays}일 이내에 요청할 수 있음을 확인합니다.`)}
+                  {t("I agree to the ", "")}<Link href="/terms" target="_blank" className="sf-link">{t("Terms of Service", "이용약관")}</Link>{t(" and ", " 및 ")}<Link href="/privacy" target="_blank" className="sf-link">{t("Privacy Policy", "개인정보 처리방침")}</Link>{t(`. I understand digital content is available immediately, and refunds can be requested within ${n(settings.commerce.refundWindowDays, "day")}.`, `에 동의합니다. 디지털 콘텐츠는 결제 즉시 제공되며, 환불은 ${settings.commerce.refundWindowDays}일 이내에 요청할 수 있음을 확인합니다.`)}
                 </span>
               </label>
               <BusyButton className="sf-btn sf-btn-primary sf-btn-lg sf-btn-block" busyLabel={t("Processing…", "처리 중…")} disabled={!canPay}>
@@ -183,7 +183,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
           {p.compareAtCents != null && p.compareAtCents > p.priceCents && <div className="sf-line text-[#6b7065]"><span>{t("Regular price", "정가")}</span><s>{money(p.compareAtCents)}</s></div>}
           <div className="sf-line"><span>{t("Coupon discount", "쿠폰 할인")}{appliedCoupon ? ` (${appliedCoupon})` : ""}</span><span className={discountCents ? "text-[#1f6a3d]" : ""}>{discountCents ? `−${money(discountCents)}` : money(0)}</span></div>
           <div className="sf-line sf-line-total"><span>{t("Total", "총 결제 금액")}</span><span>{money(totalCents)}</span></div>
-          <p className="!mt-4 flex items-start gap-2 text-[13px] leading-relaxed text-[#6b7065]"><Lock size={15} className="mt-0.5" aria-hidden />{t("Prices are confirmed on our server when you place the order. You’ll be redirected to the payment provider to finish.", "주문 시 서버에서 금액을 다시 확인하며, 결제는 결제사 화면에서 완료됩니다.")}</p>
+          <p className="!mt-4 flex items-start gap-2 text-[13px] leading-relaxed text-[#6b7065]"><Lock size={15} className="mt-0.5" aria-hidden />{totalCents === 0
+              ? t("Prices are confirmed on our server when you place the order. Nothing is charged for a free order.", "주문 시 서버에서 금액을 다시 확인합니다. 무료 주문은 결제 없이 바로 지급됩니다.")
+              : t("Prices are confirmed on our server when you place the order. You’ll be redirected to the payment provider to finish.", "주문 시 서버에서 금액을 다시 확인하며, 결제는 결제사 화면에서 완료됩니다.")}</p>
         </aside>
       </div>
     </main>

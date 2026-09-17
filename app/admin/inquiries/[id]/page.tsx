@@ -13,7 +13,7 @@ import { PageHeader, Panel, DetailList, Notice, Badge } from "@/components/conso
 import { StatusBadge } from "@/components/console/status-badge";
 import { ActionButton, ActionForm } from "@/components/common/action-form";
 import { adminCloseInquiry, adminReplyInquiry } from "../actions";
-import { inquiryCategories } from "../labels";
+import { inquiryCategories } from "@/lib/inquiry-categories";
 
 export const metadata = { title: "Inquiry" };
 

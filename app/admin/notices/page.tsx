@@ -29,7 +29,7 @@ export default async function AdminNotices({ searchParams }: { searchParams: Pro
     db.select({ n: s.notices, author: s.users.name }).from(s.notices).leftJoin(s.users, eq(s.users.id, s.notices.createdBy)).where(cond).orderBy(desc(s.notices.pinned), desc(s.notices.createdAt)).limit(size).offset(offset),
     db.select({ total: count() }).from(s.notices).where(cond),
   ]);
-  const audience = { all: [t("Everyone", "전체"), "gray"], sellers: [t("Sellers", "판매자"), "blue"], buyers: [t("Buyers", "구매자"), "violet"] } as const;
+  const audience = { all: [t("Everyone", "전체 공개"), "gray"], sellers: [t("Sellers", "판매자"), "blue"], buyers: [t("Buyers", "구매자"), "violet"] } as const;
 
   return (
     <>
@@ -37,7 +37,7 @@ export default async function AdminNotices({ searchParams }: { searchParams: Pro
       <FilterBar
         fields={[
           { type: "search", name: "q", placeholder: ["Title", "제목 검색"] },
-          { type: "select", name: "audience", label: ["Audience", "공개 대상"], options: [{ value: "all", en: "Everyone", ko: "전체" }, { value: "sellers", en: "Sellers", ko: "판매자" }, { value: "buyers", en: "Buyers", ko: "구매자" }] },
+          { type: "select", name: "audience", label: ["Audience", "공개 대상"], options: [{ value: "all", en: "Everyone", ko: "전체 공개" }, { value: "sellers", en: "Sellers", ko: "판매자" }, { value: "buyers", en: "Buyers", ko: "구매자" }] },
           { type: "select", name: "published", label: ["Published", "게시 여부"], options: [{ value: "yes", en: "Published", ko: "게시" }, { value: "no", en: "Draft", ko: "미게시" }] },
           { type: "period" },
         ]}

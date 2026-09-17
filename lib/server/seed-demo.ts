@@ -75,9 +75,9 @@ export async function seedDemoData(db: DB) {
   const buyer3 = await insertUser("taylor@ringo.local", "Taylor Lee", "buyer");
   const applicant = await insertUser("applicant@ringo.local", "Maria Santos", "buyer");
 
-  const [sn] = await db.insert(s.sellers).values({ userId: u1.id, slug: "studio-north", displayName: "Studio North", bio: "Independent design studio making tools for creative practice.", status: "active", payoutMethod: "bank", payoutBankName: "BDO", payoutAccountName: "Studio North Inc.", payoutAccountNumber: "0012-3456-7890", reviewedAt: new Date(now - 39 * day) }).returning();
-  const [ff] = await db.insert(s.sellers).values({ userId: u2.id, slug: "form-field", displayName: "Form & Field", bio: "Editorial systems and creative workflow courses.", status: "active", commissionBps: 800, payoutMethod: "gcash", payoutAccountName: "Form Field", payoutAccountNumber: "0917-000-0000", reviewedAt: new Date(now - 38 * day) }).returning();
-  await db.insert(s.sellers).values({ userId: applicant.id, slug: "maria-creates", displayName: "Maria Creates", bio: "Manila-based illustrator selling Procreate brushes.", status: "pending", applicationNote: "I sell brush packs and illustration courses. Portfolio: behance.net/example" });
+  const [sn] = await db.insert(s.sellers).values({ userId: u1.id, slug: "studio-north", displayName: "Studio North", bio: "Independent design studio making tools for creative practice.", status: "active", payoutMethod: "bank", payoutBankName: "BDO", payoutAccountName: "Studio North Inc.", payoutAccountNumber: "0012-3456-7890", reviewedAt: new Date(now - 39 * day), createdAt: new Date(now - 41 * day) }).returning();
+  const [ff] = await db.insert(s.sellers).values({ userId: u2.id, slug: "form-field", displayName: "Form & Field", bio: "Editorial systems and creative workflow courses.", status: "active", commissionBps: 800, payoutMethod: "gcash", payoutAccountName: "Form Field", payoutAccountNumber: "0917-000-0000", reviewedAt: new Date(now - 38 * day), createdAt: new Date(now - 40 * day) }).returning();
+  await db.insert(s.sellers).values({ userId: applicant.id, slug: "maria-creates", displayName: "Maria Creates", bio: "Manila-based illustrator selling Procreate brushes.", status: "pending", applicationNote: "I sell brush packs and illustration courses. Portfolio: behance.net/example", createdAt: new Date(now - 2 * day) });
 
   const sellerMap: Record<string, string> = { "studio-north": sn.id, "form-field": ff.id, "james-june": sn.id };
   const idMap: Record<string, string> = {};
@@ -126,8 +126,8 @@ export async function seedDemoData(db: DB) {
     formatLabel: "PDF · 40 pages", priceCents: 1800, status: "pending_review", coverKey: "preset:book", submittedAt: new Date(now - day),
   });
 
-  const [link] = await db.insert(s.deepLinks).values({ code: "mgw-insta", productId: idMap.p1, sellerId: sn.id, name: "Make Good Work · Instagram", source: "instagram", medium: "social", campaign: "creative-start" }).returning();
-  const [link2] = await db.insert(s.deepLinks).values({ code: "type-news", productId: idMap.p2, sellerId: sn.id, name: "Studio kit · Newsletter", source: "newsletter", medium: "email", campaign: "studio-edit", destination: "checkout" }).returning();
+  const [link] = await db.insert(s.deepLinks).values({ code: "mgw-insta", productId: idMap.p1, sellerId: sn.id, name: "Make Good Work · Instagram", source: "instagram", medium: "social", campaign: "creative-start", createdAt: new Date(now - 25 * day) }).returning();
+  const [link2] = await db.insert(s.deepLinks).values({ code: "type-news", productId: idMap.p2, sellerId: sn.id, name: "Studio kit · Newsletter", source: "newsletter", medium: "email", campaign: "studio-edit", destination: "checkout", createdAt: new Date(now - 22 * day) }).returning();
   // The click counter and the click log have to agree, or the deep-link report contradicts itself.
   for (const [row, count, referrer] of [[link, 42, "https://instagram.com/"], [link2, 17, "https://mail.example.com/"]] as const) {
     await db.insert(s.linkClicks).values(
@@ -184,7 +184,7 @@ export async function seedDemoData(db: DB) {
         orderId: order.id,
         rating,
         body: reviewBodies[ago % reviewBodies.length],
-        createdAt: new Date(at.getTime() + 2 * day),
+        createdAt: new Date(Math.min(at.getTime() + 2 * day, now - day)),
       });
       await recomputeRating(db, product.id);
     }

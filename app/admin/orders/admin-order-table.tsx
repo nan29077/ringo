@@ -6,7 +6,7 @@ import { DataTable, EmptyState, Badge } from "@/components/console/ui";
 import { StatusBadge } from "@/components/console/status-badge";
 
 type Order = typeof orders.$inferSelect;
-export type AdminOrderRow = { o: Order; seller: string; provider: string | null };
+export type AdminOrderRow = { o: Order; seller: string; provider: string | null; processedReason?: string | null };
 
 /** Order rows for the admin order list, production queue and refund queue. */
 export function AdminOrderTable({ rows, t, lang, mode = "all", empty, footer }: { rows: AdminOrderRow[]; t: T; lang: Lang; mode?: "all" | "production" | "refunds"; empty: string; footer?: React.ReactNode }) {
@@ -19,7 +19,8 @@ export function AdminOrderTable({ rows, t, lang, mode = "all", empty, footer }: 
         : [t("Order", "주문번호"), t("Buyer", "구매자"), t("Product · seller", "상품 · 판매자"), t("Amount", "결제금액"), t("Commission", "수수료"), t("Payment", "결제수단"), t("Status", "상태"), t("Source", "유입")];
   return (
     <DataTable head={head} empty={<EmptyState title={empty} />} footer={footer}>
-      {rows.map(({ o, seller, provider }) => {
+      {rows.map((row) => {
+        const { o, seller, provider } = row;
         const orderCell = (
           <td className="whitespace-nowrap">
             <Link href={`/admin/orders/${o.id}`} className="font-semibold text-[#2f4ac2] hover:underline">{o.orderNo}</Link>
@@ -60,7 +61,7 @@ export function AdminOrderTable({ rows, t, lang, mode = "all", empty, footer }: 
           );
         }
         if (mode === "refunds") {
-          const reason = o.refundStatus === "rejected" ? o.refundRejectReason : o.refundReason;
+          const reason = o.refundStatus === "rejected" ? o.refundRejectReason : o.refundReason ?? row.processedReason;
           return (
             <tr key={o.id}>
               {orderCell}
@@ -68,7 +69,7 @@ export function AdminOrderTable({ rows, t, lang, mode = "all", empty, footer }: 
               {product}
               <td className="whitespace-nowrap font-medium">{formatMoney(o.refundedCents || o.totalCents, o.currency, lang)}</td>
               <td className="max-w-[280px]">
-                <p className="line-clamp-2 text-xs text-[#5b5e68]">{reason ?? o.refundReason ?? "—"}</p>
+                <p className="line-clamp-2 text-xs text-[#5b5e68]">{reason ?? "—"}</p>
                 {o.refundStatus === "rejected" && o.refundReason && <p className="line-clamp-1 text-[11px] text-[#9a9ca5]">{t("Request", "요청")}: {o.refundReason}</p>}
               </td>
               <td><StatusBadge map={refundStatus} value={o.refundStatus} lang={lang} /></td>

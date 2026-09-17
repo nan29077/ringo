@@ -1,4 +1,4 @@
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import * as s from "@/db/schema";
 import { requireAdmin } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
@@ -23,7 +23,7 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
   const cond = adminOrderWhere(sp);
   const [settings, sellerRows, providers, rows, [agg]] = await Promise.all([
     getSettings(db),
-    db.select({ id: s.sellers.id, name: s.sellers.displayName }).from(s.sellers).orderBy(s.sellers.displayName),
+    db.select({ id: s.sellers.id, name: s.sellers.displayName }).from(s.sellers).where(inArray(s.sellers.status, ["active", "suspended"])).orderBy(s.sellers.displayName),
     knownProviders(db),
     db
       .select({ o: s.orders, seller: s.sellers.displayName, provider: orderProviderSql })

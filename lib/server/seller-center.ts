@@ -42,7 +42,8 @@ export async function sellerBalance(db: DB, sellerId: string) {
     refundWindowDays: settings.commerce.refundWindowDays,
     minPayoutCents: settings.commerce.minPayoutCents,
     currency: settings.site.currency,
-    unsettledCents: sum(unsettled),
+    // Includes pending refund deductions, so this equals available + holding.
+    unsettledCents: sum(unsettled) + adjustmentCents,
     /** Refunds of orders that were already paid out; deducted from the next payout (negative). */
     adjustments: { cents: adjustmentCents, count: adjustments.length, rows: adjustments },
     available: { cents: sum(eligible) + adjustmentCents, count: eligible.length, orders: eligible },

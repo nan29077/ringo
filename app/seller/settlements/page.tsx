@@ -62,8 +62,8 @@ export default async function SellerSettlements({ searchParams }: { searchParams
               <td className="whitespace-nowrap">{m(x.grossCents, x.currency)}</td>
               <td className="whitespace-nowrap text-[#6b6e78]">{m(-x.commissionCents, x.currency)}</td>
               <td className="whitespace-nowrap font-semibold">{m(x.netCents, x.currency)}</td>
-              <td><StatusBadge map={settlementStatus} value={x.status} lang={lang} /></td>
-              <td className="max-w-[160px] truncate text-xs">{x.reference ?? "—"}</td>
+              <td>{isAdjustmentSettlement(x) ? <Badge tone={x.status === "paid" ? "gray" : "amber"}>{x.status === "paid" ? t("Deducted", "차감 완료") : t("Deducted from next payout", "다음 정산에서 차감")}</Badge> : <StatusBadge map={settlementStatus} value={x.status} lang={lang} />}</td>
+              <td className="max-w-[160px] truncate text-xs">{isAdjustmentSettlement(x) ? t("Applied to a payout", "정산에 반영됨") : x.reference ?? "—"}</td>
               <td className="whitespace-nowrap text-xs">{formatDate(x.paidAt, lang)}</td>
               <td className="text-right"><Link href={`/seller/settlements/${x.id}`} className="rc-btn rc-btn-outline rc-btn-sm">{t("Details", "상세")}</Link></td>
             </tr>

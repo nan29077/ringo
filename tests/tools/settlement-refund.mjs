@@ -119,7 +119,8 @@ try {
   console.log('  settings:', await toast());
   console.log('  batch:', await createBatch('Studio North'));
   rows = await settlementRows();
-  const merged = rows.find((r) => r[0].includes('환불 차감') && r[7].includes('지급 완료'));
+  // A consumed deduction is labelled "차감 완료" (it was applied to a batch, not transferred).
+  const merged = rows.find((r) => r[0].includes('환불 차감') && r[7].includes('차감 완료'));
   if (!merged) fail('deduction was not consumed by the next batch');
   else ok('deduction was merged into the next payout batch');
   const stillQueued = await page.goto(`${BASE}/admin/settlements`, { timeout: T }).then(() => page.locator('tr').filter({ hasText: 'Studio North' }).first().innerText());
@@ -150,7 +151,7 @@ try {
   await recordManualRefund('QA: refund out of a batch that absorbed a deduction');
   console.log('  refund:', await toast());
   rows = await settlementRows();
-  const released = rows.find((r) => r[0].includes('환불 차감') && r[7].includes('지급 대기'));
+  const released = rows.find((r) => r[0].includes('환불 차감') && r[7].includes('다음 정산에서 차감'));
   if (!released) fail('the merged deduction was not released back to pending');
   else ok(`deduction released back to pending (${released[6]})`);
   const rebuilt = rows.find((r) => r[7].includes('지급 대기') && !r[0].includes('환불 차감'));

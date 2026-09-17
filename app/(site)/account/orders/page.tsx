@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { pick } from "@/lib/server/storefront";
 import { and, count, desc, eq } from "drizzle-orm";
 import { Receipt } from "lucide-react";
 import * as s from "@/db/schema";
 import { requireViewer } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
+import { expireStaleOrders } from "@/lib/server/commerce";
 import { getT } from "@/lib/server/i18n-server";
 import { mediaUrl } from "@/lib/server/storage";
 import { listParams, one, type SP } from "@/lib/server/list";
@@ -26,8 +28,17 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   const statusParam = one(sp, "status");
   const status = (FILTERS as readonly string[]).includes(statusParam) ? (statusParam as s.OrderStatus) : null;
   const where = and(eq(s.orders.buyerId, viewer.user.id), status ? eq(s.orders.status, status) : undefined);
+  // Close any order whose payment window has passed before listing, so the list never offers to pay one.
+  await expireStaleOrders(db).catch(() => 0);
   const [rows, [{ total }]] = await Promise.all([
-    db.select({ order: s.orders, coverKey: s.products.coverKey }).from(s.orders).innerJoin(s.products, eq(s.products.id, s.orders.productId)).where(where).orderBy(desc(s.orders.createdAt)).limit(size).offset((page - 1) * size),
+    db
+      .select({ order: s.orders, coverKey: s.products.coverKey, titleEn: s.products.titleEn, titleKo: s.products.titleKo })
+      .from(s.orders)
+      .innerJoin(s.products, eq(s.products.id, s.orders.productId))
+      .where(where)
+      .orderBy(desc(s.orders.createdAt))
+      .limit(size)
+      .offset((page - 1) * size),
     db.select({ total: count() }).from(s.orders).where(where),
   ]);
   const pages = Math.max(1, Math.ceil(total / size));
@@ -42,11 +53,11 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
       <div className="sf-card">
         {rows.length ? (
           <ul className="sf-list">
-            {rows.map(({ order: o, coverKey }) => (
+            {rows.map(({ order: o, coverKey, titleEn, titleKo }) => (
               <li key={o.id} className="sf-row">
                 <img src={mediaUrl(coverKey)} alt="" className="sf-thumb" />
                 <div className="min-w-0 flex-1">
-                  <Link href={`/account/orders/${o.id}`} className="block font-semibold text-[#20211f] hover:underline">{o.productTitle}</Link>
+                  <Link href={`/account/orders/${o.id}`} className="block font-semibold text-[#20211f] hover:underline">{pick(lang, titleEn, titleKo) || o.productTitle}</Link>
                   <p className="text-[13px] text-[#6b7065]">{o.orderNo} · {formatDate(o.createdAt, lang, true)}</p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     <StatusBadge map={orderStatus} value={o.status} lang={lang} />

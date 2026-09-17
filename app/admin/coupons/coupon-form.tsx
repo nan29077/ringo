@@ -30,7 +30,7 @@ export function AdminCouponForm({ coupon, products, currency, startsValue, endsV
       )}
       <Panel title={t("Coupon", "쿠폰 정보")}>
         <div className="grid gap-4 md:grid-cols-2">
-          <Field className="content-start" label={t("Code", "쿠폰 코드")} required hint={t("Uppercase letters, numbers, - and _. Must be unique across Ringo. Platform coupons apply to every seller's products; commission is calculated on the discounted amount the buyer paid.", "영문 대문자, 숫자, -, _ 사용. 링고 전체에서 중복될 수 없습니다. 플랫폼 쿠폰은 모든 판매자 상품에 적용되며, 수수료는 할인 후 실제 결제 금액 기준으로 계산됩니다.")}>
+          <Field className="content-start" label={t("Code", "쿠폰 코드")} required hint={t("Uppercase letters, numbers, - and _. Must be unique across Ringo. Platform coupons apply to every seller's products.", "영문 대문자, 숫자, -, _ 사용. 링고 전체에서 중복될 수 없습니다. 플랫폼 쿠폰은 모든 판매자 상품에 적용됩니다.")}>
             <input name={locked ? undefined : "code"} className="rc-input uppercase" required minLength={3} maxLength={40} pattern="[A-Za-z0-9_\-]+" defaultValue={coupon?.code ?? ""} disabled={locked} placeholder="SPRING10" />
           </Field>
           <Field className="content-start" label={t("Name", "쿠폰 이름")} required hint={t("Shown to buyers at checkout.", "결제 화면에서 구매자에게 표시됩니다.")}>

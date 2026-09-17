@@ -101,6 +101,20 @@ export async function getProductForActor(db: DB, viewer: Viewer, productId: stri
  * Create or update a product. Sellers editing a published product keep it on sale
  * (content changes are logged); moderation decisions stay with admins.
  */
+/** Fields worth naming in the audit log when a product is edited. */
+const TRACKED_FIELDS = ["titleEn", "titleKo", "categoryId", "deliveryType", "priceCents", "compareAtCents", "slug", "deliveryDays", "coverKey", "formatLabel", "seoTitle", "seoDescription", "summaryEn", "summaryKo", "descriptionEn", "descriptionKo"] as const;
+
+/** `{ field: [before, after] }` for the fields an edit actually changed. */
+export function productChanges(before: Product | null, after: Product) {
+  if (!before) return undefined;
+  const out: Record<string, [unknown, unknown]> = {};
+  for (const f of TRACKED_FIELDS) {
+    if (before[f] !== after[f]) out[f] = [before[f], after[f]];
+  }
+  if ((before.lessons ?? []).length !== (after.lessons ?? []).length) out.lessons = [(before.lessons ?? []).length, (after.lessons ?? []).length];
+  return Object.keys(out).length ? out : undefined;
+}
+
 export async function saveProduct(db: DB, viewer: Viewer, raw: Record<string, unknown>, opts: { productId?: string; sellerId?: string }) {
   const input = productInput.parse(raw);
   const [category] = await db.select().from(s.categories).where(eq(s.categories.id, input.categoryId));
@@ -136,9 +150,12 @@ export async function saveProduct(db: DB, viewer: Viewer, raw: Record<string, un
     updatedAt: new Date(),
   };
   if (existing) {
+    // An edit must never leave a product on sale with nothing to deliver — for example an admin switching a
+    // download product to a course, which has no lessons yet. Checked against the post-edit shape, before saving.
+    if (existing.status === "published") await assertDeliverable(db, { id: existing.id, deliveryType, lessons: values.lessons });
     const slug = input.slug && input.slug !== existing.slug ? await uniqueSlug(db, input.slug, existing.id, { strict: true }) : existing.slug;
     const [row] = await db.update(s.products).set({ ...values, slug }).where(eq(s.products.id, existing.id)).returning();
-    return row;
+    return Object.assign(row, { changes: productChanges(existing, row) });
   }
   const settings = await getSettings(db);
   const [row] = await db
@@ -169,7 +186,7 @@ export async function submitProduct(db: DB, viewer: Viewer, productId: string) {
   return publish ? "published" : "pending_review";
 }
 
-/** A product may only go on sale when buyers actually receive something. */
+/** A product may only go on sale — or stay on sale — when buyers actually receive something. */
 export async function assertDeliverable(db: DB, product: Pick<Product, "id" | "deliveryType" | "lessons">) {
   if (product.deliveryType === "download" || product.deliveryType === "collection") {
     const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(s.productAssets).where(eq(s.productAssets.productId, product.id));
@@ -198,6 +215,8 @@ export async function setProductStatus(db: DB, viewer: Viewer, productId: string
   const product = await getProductForActor(db, viewer, productId);
   const admin = viewer.user.role === "admin";
   if (status === "published") await assertDeliverable(db, product);
+  // A product waiting for review has to be decided on first; archiving it would strand the queue entry.
+  if (status === "archived" && product.status === "pending_review" && !admin) throw new CommerceError("invalid_state");
   if (status === "suspended" && !admin) throw new CommerceError("forbidden");
   if (status === "published") {
     // Sellers can re-open products they paused (draft) only if previously approved; admins can always publish.
@@ -214,8 +233,8 @@ export async function deleteProductAsset(db: DB, viewer: Viewer, assetId: string
   await getProductForActor(db, viewer, asset.productId);
   const [product] = await db.select().from(s.products).where(eq(s.products.id, asset.productId));
   const sold = await db.select({ id: s.orders.id }).from(s.orders).where(and(eq(s.orders.productId, asset.productId), eq(s.orders.status, "paid"))).limit(1);
-  if (product && (product.deliveryType === "download" || product.deliveryType === "collection") && product.status === "published") {
-    // Buyers of a product on sale must always have something to download: replace first, then delete.
+  if (product && (product.deliveryType === "download" || product.deliveryType === "collection") && (product.status === "published" || product.status === "pending_review")) {
+    // A product on sale — or waiting for review — must keep something to deliver: replace first, then delete.
     const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(s.productAssets).where(eq(s.productAssets.productId, asset.productId));
     if (n <= 1) throw new CommerceError("last_file_on_sale");
   }

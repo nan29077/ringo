@@ -4,6 +4,7 @@ import { Star } from "lucide-react";
 import * as s from "@/db/schema";
 import { requireSeller } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
+import { isUuid } from "@/lib/server/seller-center";
 import { getT } from "@/lib/server/i18n-server";
 import { likeQ, listParams, one, periodWhere, type SP } from "@/lib/server/list";
 import { formatDate } from "@/lib/i18n";
@@ -30,7 +31,8 @@ export default async function SellerReviews({ searchParams }: { searchParams: Pr
   const where: (SQL | undefined)[] = [own, periodWhere(s.productReviews.createdAt, sp)];
   const rating = Number(one(sp, "rating"));
   if (rating >= 1 && rating <= 5) where.push(eq(s.productReviews.rating, rating));
-  if (one(sp, "product")) where.push(eq(s.productReviews.productId, one(sp, "product")));
+  // A non-UUID value would make Postgres reject the whole query, so an unusable filter is ignored.
+  if (isUuid(one(sp, "product"))) where.push(eq(s.productReviews.productId, one(sp, "product")));
   if (q) where.push(or(ilike(s.productReviews.body, likeQ(q)), ilike(s.users.name, likeQ(q))));
   const cond = and(...where);
   const [rows, [{ total }], [summary], products] = await Promise.all([

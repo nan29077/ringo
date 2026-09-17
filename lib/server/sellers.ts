@@ -1,4 +1,5 @@
 import "server-only";
+import { zonedDateKey } from "../time";
 import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import * as s from "@/db/schema";
@@ -76,5 +77,5 @@ export async function setSellerStatus(db: DB, viewer: Viewer, sellerId: string, 
   if (viewer.user.role !== "admin") throw new CommerceError("forbidden");
   const [row] = await db.select().from(s.sellers).where(eq(s.sellers.id, sellerId));
   if (!row || !["active", "suspended"].includes(row.status)) throw new CommerceError("invalid_state");
-  await db.update(s.sellers).set({ status, adminMemo: reason ? `${new Date().toISOString().slice(0, 10)} ${status}: ${reason}\n${row.adminMemo ?? ""}`.slice(0, 4000) : row.adminMemo, updatedAt: new Date() }).where(eq(s.sellers.id, sellerId));
+  await db.update(s.sellers).set({ status, adminMemo: reason ? `${zonedDateKey()} ${status}: ${reason}\n${row.adminMemo ?? ""}`.slice(0, 4000) : row.adminMemo, updatedAt: new Date() }).where(eq(s.sellers.id, sellerId));
 }

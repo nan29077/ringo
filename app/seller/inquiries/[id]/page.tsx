@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { inquiryCategories } from "@/lib/inquiry-categories";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import * as s from "@/db/schema";
@@ -68,7 +69,7 @@ export default async function SellerInquiryDetail({ params }: { params: Promise<
           <DetailList
             items={[
               [t("Customer", "고객"), userName],
-              [t("Category", "유형"), inquiry.category],
+              [t("Category", "유형"), inquiryCategories[inquiry.category] ? t(...inquiryCategories[inquiry.category]) : inquiry.category],
               [t("Product", "상품"), product ? <Link key="p" href={`/seller/products/${product.id}`} className="text-[#2f4ac2] hover:underline">{lang === "ko" ? product.titleKo : product.titleEn}</Link> : "—"],
               [t("Order", "주문"), order ? <Link key="o" href={`/seller/orders/${order.id}`} className="text-[#2f4ac2] hover:underline">{order.orderNo}</Link> : "—"],
               [t("Created", "등록일"), formatDate(inquiry.createdAt, lang, true)],

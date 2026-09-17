@@ -73,7 +73,8 @@ export async function listCatalog(db: DB, opts: { q?: string; category?: string;
   const base = () => db.select(cardColumns).from(s.products).innerJoin(s.sellers, eq(s.sellers.id, s.products.sellerId)).innerJoin(s.categories, eq(s.categories.id, s.products.categoryId));
   const [rows, [{ total }]] = await Promise.all([
     base().where(where).orderBy(...orderFor(sort)).limit(opts.limit ?? 24).offset(opts.offset ?? 0),
-    db.select({ total: count() }).from(s.products).innerJoin(s.sellers, eq(s.sellers.id, s.products.sellerId)).where(where),
+    // Same joins as the listing, so the header count can never disagree with the grid.
+    db.select({ total: count() }).from(s.products).innerJoin(s.sellers, eq(s.sellers.id, s.products.sellerId)).innerJoin(s.categories, eq(s.categories.id, s.products.categoryId)).where(where),
   ]);
   return { rows: rows as CardProduct[], total, sort };
 }

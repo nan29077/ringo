@@ -8,6 +8,7 @@ import { requireViewer } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
 import { getSettings } from "@/lib/server/settings";
+import { expireOrderIfStale } from "@/lib/server/commerce";
 import { mediaUrl } from "@/lib/server/storage";
 import { one, type SP } from "@/lib/server/list";
 import { paymentOptions } from "@/lib/server/checkout";
@@ -34,12 +35,13 @@ export default async function ResumeCheckout({ params, searchParams }: { params:
   if (!row) notFound();
   const { order, product } = row;
   if (order.status !== "pending_payment") redirect(`/account/orders/${order.id}`);
+  // Past the payment window the order is closed here, so the buyer lands on an order page that says so
+  // instead of a payment form that can no longer be used.
+  if (await expireOrderIfStale(db, order, viewer)) redirect(`/account/orders/${order.id}?expired=1`);
   const settings = await getSettings(db);
   const options = paymentOptions(settings.payments.enabledProviders, t);
   const [lastPayment] = await db.select().from(s.payments).where(eq(s.payments.orderId, order.id)).orderBy(desc(s.payments.createdAt)).limit(1);
   const expiresAt = new Date(order.createdAt.getTime() + settings.commerce.pendingPaymentMinutes * 60000);
-  // Past the window the order is already gone; send the buyer to the order page instead of a dead payment form.
-  if (expiresAt.getTime() <= Date.now()) redirect(`/account/orders/${order.id}?expired=1`);
   const money = (c: number) => formatMoney(c, order.currency, lang);
   const cancelled = one(sp, "cancelled") === "1";
   const declined = !cancelled && lastPayment && (lastPayment.status === "failed" || lastPayment.status === "cancelled");

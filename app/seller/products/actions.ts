@@ -18,7 +18,7 @@ export async function sellerSaveProduct(fd: FormData): Promise<ActionResult> {
     const raw = Object.fromEntries(fd);
     delete raw.sellerId; // never trust a client-provided owner
     const product = await saveProduct(db, viewer, raw, { productId });
-    await audit(db, viewer, productId ? "product.update" : "product.create", "product", product.id);
+    await audit(db, viewer, productId ? "product.update" : "product.create", "product", product.id, productId ? { title: product.titleEn, changed: (product as { changes?: unknown }).changes } : { title: product.titleEn });
     return productId
       ? { ok: true, message: t("Saved.", "저장했습니다.") }
       : { ok: true, message: t("Product saved as a draft. Upload files and submit it for review.", "임시저장했습니다. 파일을 올리고 심사를 요청하세요."), redirect: `/seller/products/${product.id}` };

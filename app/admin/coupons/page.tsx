@@ -55,7 +55,7 @@ export default async function AdminCoupons({ searchParams }: { searchParams: Pro
       })
       .from(s.orders)
       .where(and(isNotNull(s.orders.couponId), eq(s.orders.status, "paid"))),
-    db.select({ id: s.sellers.id, name: s.sellers.displayName }).from(s.sellers).orderBy(s.sellers.displayName),
+    db.select({ id: s.sellers.id, name: s.sellers.displayName }).from(s.sellers).where(inArray(s.sellers.status, ["active", "suspended"])).orderBy(s.sellers.displayName),
     getSettings(db).then((x) => x.site.currency),
   ]);
   const ids = rows.map((r) => r.c.id);

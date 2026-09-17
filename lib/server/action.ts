@@ -50,7 +50,7 @@ const messages: Record<string, [string, string]> = {
   delivery_type_locked: ["The delivery type of a product that was approved or sold cannot be changed. Create a new product instead.", "심사를 통과했거나 판매된 상품의 제공 방식(카테고리 유형)은 변경할 수 없습니다. 새 상품으로 등록하세요."],
   lessons_required: ["Add at least one lesson to the course.", "강의에는 최소 1개의 레슨이 필요합니다."],
   last_file_on_sale: ["A product on sale must keep at least one file. Upload the replacement first, then delete this one.", "판매 중인 상품에는 파일이 최소 1개 있어야 합니다. 새 파일을 먼저 업로드한 뒤 삭제하세요."],
-  code_taken: ["This code is already in use. Enter a different one, or leave it blank to generate one.", "이미 사용 중인 코드입니다. 다른 코드를 입력하거나, 비워두면 자동으로 만들어집니다."],
+  code_taken: ["This code is already in use. Enter a different one.", "이미 사용 중인 코드입니다. 다른 코드를 입력하세요."],
   expiry_past: ["The expiry date must be in the future. To stop a link now, pause it instead.", "만료일은 현재 이후여야 합니다. 지금 중단하려면 일시중지를 사용하세요."],
   file_required: ["Please attach a file.", "파일을 첨부하세요."],
   in_use: ["This item is in use and cannot be deleted.", "사용 중인 항목이라 삭제할 수 없습니다."],
@@ -63,6 +63,17 @@ export async function errorMessage(code: string, fallbackLang: Lang = "en") {
 }
 
 export class ActionError extends Error {}
+
+/** Field names as the forms label them, so a validation error names something the user can find. */
+const fieldLabels: Record<string, [string, string]> = {
+  code: ["code", "코드"], name: ["name", "이름"], value: ["discount", "할인"], price: ["price", "판매가"],
+  compareAt: ["compare-at price", "정가"], startsAt: ["start", "시작 일시"], endsAt: ["end", "종료 일시"],
+  expiresAt: ["expiry", "만료 일시"], minOrder: ["minimum order", "최소 주문 금액"], maxDiscount: ["maximum discount", "최대 할인"],
+  usageLimit: ["usage limit", "사용 한도"], perUserLimit: ["per-buyer limit", "1인 한도"], titleEn: ["title (English)", "상품명 (영문)"],
+  titleKo: ["title (Korean)", "상품명 (한글)"], categoryId: ["category", "카테고리"], slug: ["address", "주소"],
+  deliveryDays: ["delivery time", "제작 기간"], reason: ["reason", "사유"], email: ["email", "이메일"], password: ["password", "비밀번호"],
+};
+const fieldLabel = (path: string, lang: Lang) => fieldLabels[path]?.[lang === "ko" ? 1 : 0] ?? path;
 
 /** Korean wording for the most common Zod issues (the English message is used as-is in English). */
 function zodMessageKo(issue: ZodError["issues"][number]): string {
@@ -87,8 +98,14 @@ function zodMessageKo(issue: ZodError["issues"][number]): string {
       return issue.validation === "email" ? "이메일 형식이 올바르지 않습니다." : issue.validation === "url" ? "URL 형식이 올바르지 않습니다." : issue.validation === "uuid" ? "식별자가 올바르지 않습니다." : "형식이 올바르지 않습니다.";
     case "invalid_enum_value":
       return "허용되지 않는 값입니다.";
-    case "custom":
-      return issue.message === "Invalid date" ? "날짜 형식이 올바르지 않습니다." : issue.message;
+    case "custom": {
+      const custom: Record<string, string> = {
+        "Invalid date": "날짜 형식이 올바르지 않습니다.",
+        "Must be after the start": "시작 일시보다 뒤여야 합니다.",
+        "Must be after the start date": "시작 일시보다 뒤여야 합니다.",
+      };
+      return custom[issue.message] ?? issue.message;
+    }
     default:
       return issue.message;
   }
@@ -108,8 +125,11 @@ export async function run(fn: () => Promise<ActionResult | void>, fallbackLang: 
     if (err instanceof ActionError) return { ok: false, error: messages[err.message] ? await errorMessage(err.message, fallbackLang) : err.message };
     if (err instanceof ZodError) {
       const issue = err.issues[0];
-      const field = issue.path.join(".");
-      return { ok: false, error: t(`Check the "${field}" field: ${issue.message}`, `"${field}" 항목을 확인하세요: ${zodMessageKo(issue)}`) };
+      const path = issue.path.join(".");
+      return {
+        ok: false,
+        error: t(`Check the "${fieldLabel(path, "en")}" field: ${issue.message}`, `"${fieldLabel(path, "ko")}" 항목을 확인하세요: ${zodMessageKo(issue)}`),
+      };
     }
     console.error(err);
     try { await logError(await getDb(), "action", err instanceof Error ? err.stack || err.message : String(err)); } catch {}

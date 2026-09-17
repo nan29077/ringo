@@ -1,4 +1,5 @@
 import { desc, eq } from "drizzle-orm";
+import { zonedDateKey, zonedStamp } from "@/lib/time";
 import * as s from "@/db/schema";
 import { requireAdmin } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
@@ -22,11 +23,11 @@ export async function GET(request: Request) {
     .orderBy(desc(s.users.createdAt), s.users.email)
     .limit(50000);
   await audit(db, viewer, "member.export", "user", undefined, { filters: sp, rows: rows.length });
-  return csvResponse(`ringo-members-${new Date().toISOString().slice(0, 10)}.csv`, [
+  return csvResponse(`ringo-members-${zonedDateKey()}.csv`, [
     ["name", "email", "phone", "role", "status", "email_verified", "marketing_opt_in", "store", "store_status", "orders", "paid_orders", "paid_total", "last_login_at", "joined_at"],
     ...rows.map(({ u, store, storeStatus, orders, paidOrders, paidCents }) => [
       u.name, u.email, u.phone ?? "", u.role, u.status, u.emailVerifiedAt ? "yes" : "no", u.marketingOptIn ? "yes" : "no", store ?? "", storeStatus ?? "",
-      orders ?? 0, paidOrders ?? 0, major(paidCents), u.lastLoginAt?.toISOString() ?? "", u.createdAt.toISOString(),
+      orders ?? 0, paidOrders ?? 0, major(paidCents), zonedStamp(u.lastLoginAt), zonedStamp(u.createdAt),
     ]),
   ]);
 }

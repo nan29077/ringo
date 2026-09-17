@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { and, count, desc, eq, gt, ilike, isNotNull, isNull, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gt, ilike, inArray, isNotNull, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import * as s from "@/db/schema";
 import { requireAdmin } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
@@ -48,7 +48,7 @@ export default async function AdminLinks({ searchParams }: { searchParams: Promi
       .limit(size)
       .offset(offset),
     db.select({ total: count() }).from(s.deepLinks).innerJoin(s.products, eq(s.products.id, s.deepLinks.productId)).where(cond),
-    db.select({ id: s.sellers.id, name: s.sellers.displayName }).from(s.sellers).orderBy(s.sellers.displayName),
+    db.select({ id: s.sellers.id, name: s.sellers.displayName }).from(s.sellers).where(inArray(s.sellers.status, ["active", "suspended"])).orderBy(s.sellers.displayName),
     db.selectDistinct({ source: s.deepLinks.source }).from(s.deepLinks).orderBy(s.deepLinks.source),
     db
       .select({

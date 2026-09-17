@@ -198,10 +198,10 @@ html[lang=ko] .rh-slide-title em{font-family:inherit;font-style:normal;font-weig
 .site-menu>summary{list-style:none;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:7px;border:1px solid #dcded7;background:#fff;color:#252821;cursor:pointer}
 .site-menu>summary::-webkit-details-marker{display:none}
 .site-menu[open]>summary{background:#f3f3f0}
-.site-menu>nav{position:absolute;right:0;top:calc(100% + 8px);z-index:60;min-width:220px;display:grid;gap:2px;padding:8px;background:#fff;border:1px solid #e3e4df;border-radius:12px;box-shadow:0 14px 40px rgba(20,22,18,.14)}
-.site-menu>nav a{display:block;padding:10px 12px;border-radius:8px;font-size:14px;color:#252821}
-.site-menu>nav a:hover{background:#f3f3f0;color:#ed4b2e}
-.site-menu>nav hr{border:0;border-top:1px solid #ecede8;margin:6px 0}
+.site-menu nav{position:absolute;right:0;top:calc(100% + 8px);z-index:60;min-width:220px;display:grid;gap:2px;padding:8px;background:#fff;border:1px solid #e3e4df;border-radius:12px;box-shadow:0 14px 40px rgba(20,22,18,.14)}
+.site-menu nav a{display:block;padding:10px 12px;border-radius:8px;font-size:14px;color:#252821}
+.site-menu nav a:hover{background:#f3f3f0;color:#ed4b2e}
+.site-menu nav hr{border:0;border-top:1px solid #ecede8;margin:6px 0}
 @media(max-width:800px){.site-menu{display:block}}
 /* Account pages never scroll sideways on phones: long values wrap and wide blocks scroll inside themselves.
    Grid and flex items default to min-width:auto, which lets the scrollable nav and long text push the page wider. */

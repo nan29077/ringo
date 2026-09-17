@@ -3,6 +3,7 @@ import { ArrowUpRight, Heart, Library, Menu, User } from "lucide-react";
 import { getViewer } from "@/lib/server/auth";
 import { getT } from "@/lib/server/i18n-server";
 import { LanguageToggle } from "@/components/common/language-toggle";
+import { MobileMenu } from "./mobile-menu";
 
 export async function SiteHeader() {
   const viewer = await getViewer();
@@ -21,8 +22,7 @@ export async function SiteHeader() {
           <Link href="/sell" className="flex items-center gap-1 text-sm text-[#555751] hover:text-[#ed4b2e]">{t("Sell on Ringo", "링고에서 판매하기")}<ArrowUpRight size={14} aria-hidden /></Link>
         </nav>
         <div className="header-actions">
-          <details className="site-menu">
-            <summary aria-label={t("Menu", "메뉴")} title={t("Menu", "메뉴")}><Menu size={20} aria-hidden /></summary>
+          <MobileMenu label={t("Menu", "메뉴")} icon={<Menu size={20} aria-hidden />}>
             <nav aria-label={t("Mobile menu", "모바일 메뉴")}>
               <Link href="/#catalog">{t("Explore", "둘러보기")}</Link>
               <Link href="/?category=courses#catalog">{t("Courses", "강의")}</Link>
@@ -42,7 +42,7 @@ export async function SiteHeader() {
               <Link href="/notices">{t("Notices", "공지사항")}</Link>
               <Link href="/account/inquiries">{t("Help & support", "고객센터")}</Link>
             </nav>
-          </details>
+          </MobileMenu>
           <LanguageToggle className="lang-button" />
           {viewer ? (
             <>

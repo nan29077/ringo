@@ -181,9 +181,12 @@ export default async function SellerOrderDetail({ params }: { params: Promise<{ 
                 [t("Total paid", "결제 금액"), <b key="t">{money(o.totalCents)}</b>],
                 [
                   t("Commission", "판매 수수료"),
-                  o.discountCents
-                    ? t(`${money(o.commissionCents)} (${(o.commissionBps / 100).toFixed(1)}% of the ${money(o.subtotalCents)} list price — coupon discounts are not deducted from the fee)`, `${money(o.commissionCents)} (정가 ${money(o.subtotalCents)}의 ${(o.commissionBps / 100).toFixed(1)}% · 쿠폰 할인은 수수료에서 차감되지 않습니다)`)
-                    : `${money(o.commissionCents)} (${(o.commissionBps / 100).toFixed(1)}%)`,
+                  o.discountCents === 0
+                    ? `${money(o.commissionCents)} (${(o.commissionBps / 100).toFixed(1)}%)`
+                    : o.commissionCents < Math.round((o.subtotalCents * o.commissionBps) / 10000)
+                      // The fee never exceeds what the buyer paid, so a deep discount caps it below the list-price rate.
+                      ? t(`${money(o.commissionCents)} — capped at the amount paid (${(o.commissionBps / 100).toFixed(1)}% of the ${money(o.subtotalCents)} list price would be ${money(Math.round((o.subtotalCents * o.commissionBps) / 10000))})`, `${money(o.commissionCents)} · 결제 금액까지만 부과 (정가 ${money(o.subtotalCents)}의 ${(o.commissionBps / 100).toFixed(1)}%는 ${money(Math.round((o.subtotalCents * o.commissionBps) / 10000))})`)
+                      : t(`${money(o.commissionCents)} (${(o.commissionBps / 100).toFixed(1)}% of the ${money(o.subtotalCents)} list price — coupon discounts are not deducted from the fee)`, `${money(o.commissionCents)} (정가 ${money(o.subtotalCents)}의 ${(o.commissionBps / 100).toFixed(1)}% · 쿠폰 할인은 수수료에서 차감되지 않습니다)`),
                 ],
                 [t("Seller net", "판매자 정산액"), <b key="n" className="text-[#16794a]">{money(o.sellerNetCents)}</b>],
                 ...(o.refundedCents ? [[t("Refunded", "환불 금액"), `${money(o.refundedCents)} · ${formatDate(o.refundedAt, lang)}`] as [string, string]] : []),

@@ -136,6 +136,16 @@ export async function resetPassword(fd: FormData): Promise<ActionResult> {
 }
 
 /** "verified" (just now), "already" (link already used — the address is confirmed) or "invalid". */
+/** True while a password-reset link can still be used (not consumed, not expired). */
+export async function resetTokenValid(token: string) {
+  const db = await getDb();
+  const [row] = await db
+    .select({ id: authTokens.id })
+    .from(authTokens)
+    .where(and(eq(authTokens.tokenHash, sha256(token)), eq(authTokens.type, "reset_password"), isNull(authTokens.usedAt), gt(authTokens.expiresAt, new Date())));
+  return !!row;
+}
+
 export async function verifyEmailToken(token: string): Promise<"verified" | "already" | "invalid"> {
   const db = await getDb();
   const hash = sha256(token);
