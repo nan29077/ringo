@@ -30,7 +30,7 @@ export function ConsoleShell({ groups, workspace, user, children }: {
   const q = query.trim().toLowerCase();
 
   const nav = (
-    <nav className="flex-1 overflow-y-auto px-3 pb-6" aria-label={t("Console navigation", "관리 메뉴")}>
+    <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-6" aria-label={t("Console navigation", "관리 메뉴")}>
       {groups.map((g) => {
         const Icon = Icons[g.icon] as React.ComponentType<{ className?: string }>;
         const items = (g.items ?? []).filter((i) => !q || (i.en + i.ko).toLowerCase().includes(q));
@@ -71,10 +71,29 @@ export function ConsoleShell({ groups, workspace, user, children }: {
     </nav>
   );
 
+  const mainLink = (
+    <Link href="/" target="_blank" className="flex items-center justify-center gap-1.5 rounded-md border border-[#d9dbe3] px-3 py-2 text-xs font-medium text-[#3b3d46] hover:bg-[#f3f4f7]">
+      <ExternalLink className="size-3.5" />{t("Home", "메인으로")}
+    </Link>
+  );
+
+  const profile = (
+    <div className="flex min-w-0 items-center gap-2">
+      <span className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${workspace.tone === "admin" ? "bg-[#3b5bdb]" : "bg-[#ed4b2e]"}`}>{user.name.slice(0, 1).toUpperCase()}</span>
+      <span className="min-w-0 flex-1 text-xs leading-tight">
+        <b className="block truncate text-[#1c1d22]" title={user.name}>{user.name}</b>
+        <span className="block truncate text-[#8a8d96]" title={user.email}>{user.email}</span>
+      </span>
+      <button className="ml-1 shrink-0 rounded-md p-2 text-[#6b6e78] hover:bg-[#f3f4f7]" disabled={pending} aria-label={t("Sign out", "로그아웃")} title={t("Sign out", "로그아웃")} onClick={() => start(() => signOut())}>
+        <LogOut className="size-4" />
+      </button>
+    </div>
+  );
+
   return (
     <div className="rc-root">
       <aside className={`rc-sidebar ${open ? "open" : ""}`}>
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+        <div className="flex shrink-0 items-center justify-between px-5 pt-5 pb-3">
           <Link href="/" className="flex items-center gap-2">
             <img src="/favicon.svg" alt="" className="size-8" />
             <span className="leading-tight">
@@ -84,33 +103,26 @@ export function ConsoleShell({ groups, workspace, user, children }: {
           </Link>
           <button className="lg:hidden" aria-label={t("Close menu", "메뉴 닫기")} onClick={() => setOpen(false)}><X className="size-5" /></button>
         </div>
-        <div className="px-4 pb-3">
+        <div className="shrink-0 px-4 pb-3">
           <label className="flex h-9 items-center gap-2 rounded-lg border border-[#e4e5ea] bg-white px-3 text-sm">
             <Search className="size-4 text-[#9a9ca5]" />
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Find a menu", "메뉴 검색")} className="w-full bg-transparent outline-none" />
           </label>
         </div>
         {nav}
+        <div className="shrink-0 space-y-3 border-t border-[#eceef2] bg-[#fbfbfc] px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:hidden">
+          {mainLink}
+          {profile}
+        </div>
       </aside>
       {open && <div className="rc-backdrop lg:hidden" onClick={() => setOpen(false)} />}
       <div className="rc-main">
         <header className="rc-topbar">
           <button className="lg:hidden" aria-label={t("Open menu", "메뉴 열기")} onClick={() => setOpen(true)}><Menu className="size-5" /></button>
           <div className="flex-1" />
-          <Link href="/" target="_blank" className="hidden items-center gap-1.5 rounded-md border border-[#d9dbe3] px-3 py-1.5 text-xs font-medium text-[#3b3d46] hover:bg-[#f3f4f7] sm:inline-flex">
-            <ExternalLink className="size-3.5" />{t("View storefront", "쇼핑몰 보기")}
-          </Link>
+          <div className="hidden lg:block">{mainLink}</div>
           <LanguageToggle />
-          <div className="flex items-center gap-2 border-l border-[#eceef2] pl-3">
-            <span className={`flex size-8 items-center justify-center rounded-full text-xs font-bold text-white ${workspace.tone === "admin" ? "bg-[#3b5bdb]" : "bg-[#ed4b2e]"}`}>{user.name.slice(0, 1).toUpperCase()}</span>
-            <span className="hidden text-xs leading-tight sm:block">
-              <b className="block text-[#1c1d22]">{user.name}</b>
-              <span className="text-[#8a8d96]">{user.email}</span>
-            </span>
-            <button className="ml-1 rounded-md p-1.5 text-[#6b6e78] hover:bg-[#f3f4f7]" disabled={pending} aria-label={t("Sign out", "로그아웃")} title={t("Sign out", "로그아웃")} onClick={() => start(() => signOut())}>
-              <LogOut className="size-4" />
-            </button>
-          </div>
+          <div className="hidden border-l border-[#eceef2] pl-3 lg:block">{profile}</div>
         </header>
         <main className="rc-content">{children}</main>
       </div>
