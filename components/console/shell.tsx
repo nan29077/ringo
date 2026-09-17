@@ -40,7 +40,7 @@ export function ConsoleShell({ groups, workspace, user, children }: {
             <Link key={g.id} href={g.href} onClick={() => setOpen(false)} className={`rc-nav-link ${path === g.href ? "active" : ""}`}>
               <Icon className="size-[18px]" />
               <span className="flex-1">{t(g.en, g.ko)}</span>
-              {!!g.badge && <span className="rc-count">{g.badge}</span>}
+              {!!g.badge && <span className="rc-new" aria-label={t("New", "새 알림")} title="NEW">N</span>}
             </Link>
           );
         }
@@ -52,7 +52,7 @@ export function ConsoleShell({ groups, workspace, user, children }: {
             <button type="button" className={`rc-nav-link w-full ${anyActive ? "group-active" : ""}`} aria-expanded={isOpen} onClick={() => setCollapsed((c) => (c.includes(g.id) ? c.filter((x) => x !== g.id) : [...c, g.id]))}>
               <Icon className="size-[18px]" />
               <span className="flex-1 text-left">{t(g.en, g.ko)}</span>
-              {!!g.badge && <span className="rc-count">{g.badge}</span>}
+              {!!g.badge && <span className="rc-new" aria-label={t("New", "새 알림")} title="NEW">N</span>}
               <ChevronDown className={`size-4 transition ${isOpen ? "" : "-rotate-90"}`} />
             </button>
             {isOpen && (
@@ -60,7 +60,7 @@ export function ConsoleShell({ groups, workspace, user, children }: {
                 {items.map((i) => (
                   <Link key={i.href} href={i.href} onClick={() => setOpen(false)} className={`rc-sub-link ${isActive(i.href) ? "active" : ""}`}>
                     <span className="flex-1">{t(i.en, i.ko)}</span>
-                    {!!i.badge && <span className="rc-count">{i.badge}</span>}
+                    {!!i.badge && <span className="rc-new" aria-label={t("New", "새 알림")} title="NEW">N</span>}
                   </Link>
                 ))}
               </div>
