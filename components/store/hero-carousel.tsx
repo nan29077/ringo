@@ -66,7 +66,6 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
                   </div>
                   <div className="rh-slide-art">
                     <img src={s.image} alt="" fetchPriority={i === 0 ? "high" : "auto"} loading={i === 0 ? "eager" : "lazy"} />
-                    <span aria-hidden>RINGO · {String(i + 1).padStart(2, "0")}</span>
                   </div>
                 </div>
               </CarouselItem>

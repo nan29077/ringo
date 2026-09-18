@@ -202,7 +202,9 @@ html[lang=ko] .rh-slide-title em{font-family:inherit;font-style:normal;font-weig
 .site-menu nav a{display:block;padding:10px 12px;border-radius:8px;font-size:14px;color:#252821}
 .site-menu nav a:hover{background:#f3f3f0;color:#ed4b2e}
 .site-menu nav hr{border:0;border-top:1px solid #ecede8;margin:6px 0}
-@media(max-width:800px){.site-menu{display:block}}
+/* The hamburger is the header's first child, so on phones it sits at the far left and the actions
+   group is pushed to the right; the dropdown then opens from the left edge, not the right. */
+@media(max-width:800px){.site-menu{display:block}.site-header>.brand{margin-right:auto}.site-header .site-menu nav{display:grid;left:0;right:auto;max-width:calc(100vw - 32px)}}
 /* Account pages never scroll sideways on phones: long values wrap and wide blocks scroll inside themselves.
    Grid and flex items default to min-width:auto, which lets the scrollable nav and long text push the page wider. */
 .sf-account{min-width:0}

@@ -13,6 +13,28 @@ export async function SiteHeader() {
     <>
       <div className="announcement">{t("Good ideas deserve great tools. Discover your next digital find.", "좋은 아이디어를 위한 멋진 도구. 새로운 디지털 콘텐츠를 만나보세요.")}<span>{t("CURATED BY CREATORS", "크리에이터가 만든 콘텐츠")}</span></div>
       <header className="site-header">
+        {/* The hamburger sits before the logo so it lands in the top-left corner on phones; it is hidden above 800px. */}
+        <MobileMenu label={t("Menu", "메뉴")} icon={<Menu size={20} aria-hidden />}>
+          <nav aria-label={t("Mobile menu", "모바일 메뉴")}>
+            <Link href="/#catalog">{t("Explore", "둘러보기")}</Link>
+            <Link href="/?category=courses#catalog">{t("Courses", "강의")}</Link>
+            <Link href="/?category=ebooks#catalog">{t("eBooks", "전자책")}</Link>
+            <Link href="/?category=design#catalog">{t("Design", "디자인")}</Link>
+            <Link href="/sell">{t("Sell on Ringo", "링고에서 판매하기")}</Link>
+            {viewer && (
+              <>
+                <hr />
+                <Link href="/account/library">{t("Library", "라이브러리")}</Link>
+                <Link href="/account/wishlist">{t("Wishlist", "관심 상품")}</Link>
+                <Link href="/account/orders">{t("Orders", "주문 내역")}</Link>
+                {workspace && <Link href={workspace.href}>{workspace.label}</Link>}
+              </>
+            )}
+            <hr />
+            <Link href="/notices">{t("Notices", "공지사항")}</Link>
+            <Link href="/account/inquiries">{t("Help & support", "고객센터")}</Link>
+          </nav>
+        </MobileMenu>
         <Link href="/" aria-label={t("Ringo home", "링고 홈")} className="brand"><img src="/favicon.svg" alt="" />ringo<span className="brand-dot">®</span></Link>
         <nav aria-label={t("Main", "주요 메뉴")}>
           <Link href="/#catalog" className="text-sm text-[#555751] hover:text-[#ed4b2e]">{t("Explore", "둘러보기")}</Link>
@@ -22,27 +44,6 @@ export async function SiteHeader() {
           <Link href="/sell" className="flex items-center gap-1 text-sm text-[#555751] hover:text-[#ed4b2e]">{t("Sell on Ringo", "링고에서 판매하기")}<ArrowUpRight size={14} aria-hidden /></Link>
         </nav>
         <div className="header-actions">
-          <MobileMenu label={t("Menu", "메뉴")} icon={<Menu size={20} aria-hidden />}>
-            <nav aria-label={t("Mobile menu", "모바일 메뉴")}>
-              <Link href="/#catalog">{t("Explore", "둘러보기")}</Link>
-              <Link href="/?category=courses#catalog">{t("Courses", "강의")}</Link>
-              <Link href="/?category=ebooks#catalog">{t("eBooks", "전자책")}</Link>
-              <Link href="/?category=design#catalog">{t("Design", "디자인")}</Link>
-              <Link href="/sell">{t("Sell on Ringo", "링고에서 판매하기")}</Link>
-              {viewer && (
-                <>
-                  <hr />
-                  <Link href="/account/library">{t("Library", "라이브러리")}</Link>
-                  <Link href="/account/wishlist">{t("Wishlist", "관심 상품")}</Link>
-                  <Link href="/account/orders">{t("Orders", "주문 내역")}</Link>
-                  {workspace && <Link href={workspace.href}>{workspace.label}</Link>}
-                </>
-              )}
-              <hr />
-              <Link href="/notices">{t("Notices", "공지사항")}</Link>
-              <Link href="/account/inquiries">{t("Help & support", "고객센터")}</Link>
-            </nav>
-          </MobileMenu>
           <LanguageToggle className="lang-button" />
           {viewer ? (
             <>

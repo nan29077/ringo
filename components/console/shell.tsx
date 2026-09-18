@@ -119,6 +119,14 @@ export function ConsoleShell({ groups, workspace, user, children }: {
       <div className="rc-main">
         <header className="rc-topbar">
           <button className="lg:hidden" aria-label={t("Open menu", "메뉴 열기")} onClick={() => setOpen(true)}><Menu className="size-5" /></button>
+          {/* The sidebar carries the logo on desktop, but it is off-screen on phones, so the top bar shows it there. */}
+          <Link href={workspace.tone === "admin" ? "/admin" : "/seller"} className="flex min-w-0 items-center gap-2 lg:hidden">
+            <img src="/favicon.svg" alt="" className="size-7 shrink-0" />
+            <span className="min-w-0 leading-tight">
+              <span className="block text-[10px] font-semibold tracking-wide text-[#8a8d96]">{workspace.tone === "admin" ? "RINGO ADMIN" : "RINGO SELLER"}</span>
+              <span className="block truncate text-[13px] font-bold text-[#1c1d22]">{t(workspace.en, workspace.ko)}</span>
+            </span>
+          </Link>
           <div className="flex-1" />
           <LanguageToggle />
         </header>
