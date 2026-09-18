@@ -12,12 +12,14 @@ export const defaultCategories = [
   { id: "ebooks", nameEn: "eBooks & guides", nameKo: "전자책 · 가이드", deliveryType: "download" as const, sort: 50 },
   { id: "design", nameEn: "Design resources", nameKo: "디자인 리소스", deliveryType: "download" as const, sort: 60 },
   { id: "photo", nameEn: "Photography", nameKo: "사진 · 프리셋", deliveryType: "download" as const, sort: 70 },
+  { id: "audio", nameEn: "Audio & music", nameKo: "오디오 · 음원", deliveryType: "download" as const, sort: 80 },
 ];
 
 /** Idempotent start-up tasks: default categories, env-provided super admin, optional demo data. */
 export async function bootstrapDatabase(db: DB) {
-  const [{ value: categoryCount }] = await db.select({ value: count() }).from(categories);
-  if (!categoryCount) await db.insert(categories).values(defaultCategories).onConflictDoNothing();
+  // Runs on every start so a default added in a later release also reaches databases that already
+  // hold categories; onConflictDoNothing leaves any name or sort an operator has edited alone.
+  await db.insert(categories).values(defaultCategories).onConflictDoNothing();
 
   const adminEmail = process.env.RINGO_ADMIN_EMAIL?.trim().toLowerCase();
   const adminPassword = process.env.RINGO_ADMIN_PASSWORD;

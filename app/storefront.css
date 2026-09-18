@@ -227,3 +227,45 @@ html[lang=ko] .rh-slide-title em{font-family:inherit;font-style:normal;font-weig
 .sf-lesson-notes{font-size:14px;line-height:1.7;color:#3b3f38}
 .sf-lesson-notes p{margin:0 0 10px;overflow-wrap:anywhere}
 .sf-lessons>li.\!block .sf-lesson{margin:0 -18px -12px;padding-left:18px;padding-right:18px}
+
+/* ── Mobile catalog (≤600px) ────────────────────────────────────────────────────────────────────
+   The category filter wrapped onto three or four lines on a phone and the products sat as bare
+   images with loose text under them. Here the filter becomes a two-column grid of card buttons and
+   each product becomes one bordered card. Selectors carry an extra class so they beat the phone
+   rules in ringo-home.css regardless of which stylesheet the bundler emits first. */
+@media(max-width:600px){
+ .rh-catalog .rh-catalog-toolbar{flex-direction:column;align-items:stretch;gap:12px;padding-bottom:14px}
+ /* Two columns of card buttons: a scrolling row hid the categories that did not fit. */
+ .rh-catalog-toolbar .rh-filter-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;margin:0;padding:0}
+ .rh-catalog-toolbar .rh-filter-tabs>a{justify-content:space-between;gap:8px;margin-bottom:0;padding:11px 13px;min-height:48px;border:1px solid #e3e7da;border-radius:10px;background:#fff;color:#4f5748;font-size:.8125rem;line-height:1.3;white-space:normal;word-break:keep-all}
+ .rh-catalog-toolbar .rh-filter-tabs>a.selected{background:#2b3324;border-color:#2b3324;color:#fff}
+ .rh-catalog-toolbar .rh-filter-tabs>a>span{flex-shrink:0;background:#f0f2ea;color:#6b7559;font-size:.6875rem;line-height:18px}
+ .rh-catalog-toolbar .rh-filter-tabs>a.selected>span{background:#ffffff2e;color:#fff}
+ .rh-catalog-toolbar .rh-search{width:100%;max-width:none;min-width:0;flex-basis:auto;margin:0}
+ .rh-catalog .rh-results{padding:14px 0 12px;gap:10px}
+
+ .ringo-home .rh-catalog .product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+ .ringo-home .rh-catalog .product-card{display:flex;flex-direction:column;height:100%;padding:8px 8px 10px;background:#fff;border:1px solid #eaece4;border-radius:14px}
+ .ringo-home .rh-catalog .card-image{aspect-ratio:1;border-radius:9px}
+ .ringo-home .rh-catalog .card-meta{margin-top:9px;padding-inline:2px}
+ /* Two lines keeps every card in a row the same height without cutting titles mid-word. */
+ .ringo-home .rh-catalog .product-title{margin-top:5px;padding-inline:2px;min-height:0;font-size:.9375rem;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+ .ringo-home .rh-catalog .card-bottom{margin-top:auto;padding:9px 2px 0;border-bottom:0;align-items:flex-end;flex-wrap:nowrap;gap:8px}
+ .ringo-home .rh-catalog .card-bottom>span{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+ .ringo-home .rh-catalog .card-bottom>strong{white-space:nowrap}
+}
+
+/* ── Mobile "Follow your curiosity" (≤600px) ────────────────────────────────────────────────────
+   One card per row made the section feel endless, so the cards go two-up and stack their contents
+   vertically: icon, tagline, then the category name and count. */
+@media(max-width:600px){
+ .rh-explore .rh-categories{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .rh-explore .rh-category{flex-direction:column;align-items:flex-start;flex-wrap:nowrap;gap:9px;padding:14px 13px 15px;border-radius:12px}
+ .rh-explore .rh-category>span:nth-child(2){order:0;flex:none;width:100%;min-width:0}
+ .rh-explore .rh-category-icon{width:36px;height:36px;border-radius:10px}
+ .rh-explore .rh-category-icon svg{width:19px;height:19px}
+ .rh-explore .rh-category strong{font-size:.875rem;line-height:1.4;word-break:keep-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+ .rh-explore .rh-category small{margin-top:5px;font-size:.6875rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+ /* The arrow only repeats what tapping the whole card does, and it costs a column at this width. */
+ .rh-explore .rh-category>svg{display:none}
+}

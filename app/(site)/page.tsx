@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowUpRight, BookOpen, Camera, Check, Download, Heart, LayoutGrid, Link2, Megaphone, Package, Palette, Search, ShieldCheck, ShoppingBag, Sparkles } from "lucide-react";
+import { ArrowUpRight, BookOpen, Camera, Check, Download, Heart, LayoutGrid, Link2, Megaphone, Music, Package, Palette, Search, ShieldCheck, ShoppingBag, Sparkles } from "lucide-react";
 import { getViewer } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
@@ -30,6 +30,7 @@ const categoryStyle: Record<string, { icon: typeof BookOpen; style: string; en: 
   ebooks: { icon: BookOpen, style: "coral", en: "Read. Learn. Grow.", ko: "읽고, 배우고, 성장하기." },
   design: { icon: Palette, style: "lilac", en: "Make your mark.", ko: "나만의 색을 더하기." },
   photo: { icon: Camera, style: "cyan", en: "Capture a feeling.", ko: "순간의 감성을 담기." },
+  audio: { icon: Music, style: "coral", en: "Set the mood.", ko: "분위기를 완성하기." },
 };
 const monogramTheme = ["ink", "orange", "blue"];
 
