@@ -15,7 +15,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const db = await getDb();
   const [row] = await db.select({ file: s.orderDeliverables, order: s.orders }).from(s.orderDeliverables).innerJoin(s.orders, eq(s.orders.id, s.orderDeliverables.orderId)).where(eq(s.orderDeliverables.id, id));
   if (!row) return new Response("Not found", { status: 404 });
-  const allowed = viewer.user.role === "admin" || row.order.sellerId === viewer.seller?.id || (row.order.buyerId === viewer.user.id && row.order.status === "paid" && row.order.fulfillmentStatus === "delivered");
+  // The seller branch also requires an active store, the same rule the order and product helpers use;
+  // a suspended seller keeps a live session but loses access to the console and to these files.
+  const isSeller = !!viewer.seller && viewer.seller.status === "active" && row.order.sellerId === viewer.seller.id;
+  const allowed = viewer.user.role === "admin" || isSeller || (row.order.buyerId === viewer.user.id && row.order.status === "paid" && row.order.fulfillmentStatus === "delivered");
   if (!allowed) return new Response("Not found", { status: 404 });
   return streamDownload(row.file.storageKey, row.file.filename, row.file.contentType);
 }

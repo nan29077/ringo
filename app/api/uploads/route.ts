@@ -4,7 +4,7 @@ import * as s from "@/db/schema";
 import { getViewer } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
 import { IMAGE_TYPES, maxUploadBytes, newStorageKey, storage } from "@/lib/server/storage";
-import { getProductForActor } from "@/lib/server/catalog";
+import { flagContentChange, getProductForActor } from "@/lib/server/catalog";
 import { getOrderForActor } from "@/lib/server/commerce";
 import { audit } from "@/lib/server/audit";
 import { rateLimit } from "@/lib/server/request";
@@ -47,6 +47,8 @@ export async function POST(request: Request) {
       const product = await getProductForActor(db, viewer, productId);
       // A suspended product is under admin action: sellers cannot keep changing what buyers would receive.
       if (product.status === "suspended" && viewer.user.role !== "admin") throw new Error("forbidden");
+      // Adding a file to a product already on sale changes what buyers receive: flag it for review.
+      await flagContentChange(db, viewer, product);
     }
     if (kind === "deliverable") {
       orderId = String(form.get("orderId") || "");

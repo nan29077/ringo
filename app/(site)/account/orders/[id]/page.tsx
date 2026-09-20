@@ -188,7 +188,7 @@ export default async function OrderDetail({ params, searchParams }: { params: Pr
             <Card title={t("Your review", "내 리뷰")} id="review">
               {review ? (
                 <div>
-                  <div className="flex flex-wrap items-center gap-3 text-sm"><Stars value={review.rating} label={t(`${review.rating} out of 5`, `5점 만점에 ${review.rating}점`)} /><span className="text-[#6b7065]">{formatDate(review.createdAt, lang)}</span>{review.hidden && <span className="sf-pill">{t("Hidden by moderators", "운영 정책에 따라 숨김")}</span>}</div>
+                  <div className="flex flex-wrap items-center gap-3 text-sm"><Stars value={review.rating} label={t(`${review.rating} out of 5`, `5점 만점에 ${review.rating}점`)} /><span className="text-[#6b7065]">{formatDate(review.createdAt, lang)}</span>{review.hidden && <span className="sf-pill">{o.status === "refunded" ? t("Withdrawn with the refund", "환불 처리로 내려감") : t("Hidden by moderators", "운영 정책에 따라 숨김")}</span>}</div>
                   {review.body && <p className="!mt-2 whitespace-pre-line text-[15px] text-[#4f534a]">{review.body}</p>}
                 </div>
               ) : (

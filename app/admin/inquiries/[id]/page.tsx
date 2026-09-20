@@ -5,7 +5,7 @@ import * as s from "@/db/schema";
 import { requireAdmin } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
-import { getInquiryThread } from "@/lib/server/inquiries";
+import { getInquiryThread, markInquiryRead } from "@/lib/server/inquiries";
 import { isUuid } from "@/lib/server/admin-catalog";
 import { formatDate, formatMoney } from "@/lib/i18n";
 import { inquiryStatus, orderStatus } from "@/lib/status";
@@ -24,6 +24,8 @@ export default async function AdminInquiryDetail({ params }: { params: Promise<{
   const db = await getDb();
   const { t, lang } = await getT("ko");
   const thread = await getInquiryThread(db, viewer, id).catch(() => null);
+  // Opening the thread clears its unread badge for this side.
+  if (thread) await markInquiryRead(db, thread.access, id);
   if (!thread) notFound();
   const { inquiry, userName, userEmail, messages } = thread;
   const [seller, product, order, [previous]] = await Promise.all([

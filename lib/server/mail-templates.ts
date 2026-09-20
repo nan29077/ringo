@@ -215,6 +215,39 @@ export const mailTemplates = {
         : { subject: `"${v.product}" 상품 수정이 필요합니다`, text: lines("상품 심사가 승인되지 않았습니다.", `사유: ${v.reason ?? ""}`, "내용을 수정한 뒤 다시 심사를 요청해 주세요.") },
     )) as Template<{ approved: boolean; product: string; reason?: string | null }>,
 
+  inquiry_new: ((v: { subject: string; body: string; from: string; url: string }, lang) =>
+    pick(
+      lang,
+      { subject: `New inquiry: ${v.subject}`, text: lines(`${v.from} sent a new inquiry on Ringo:`, "", v.body, "", `Reply here: ${v.url}`) },
+      { subject: `새 문의: ${v.subject}`, text: lines(`${v.from}님이 링고에 새 문의를 남겼습니다:`, "", v.body, "", `답변하기: ${v.url}`) },
+    )) as Template<{ subject: string; body: string; from: string; url: string }>,
+
+  product_suspended: ((v: { product: string; reason: string; url: string }, lang) =>
+    pick(
+      lang,
+      {
+        subject: `"${v.product}" has been taken off sale`,
+        text: lines(`A Ringo operator stopped the sale of "${v.product}".`, `Reason: ${v.reason}`, "", "Existing buyers keep access. Contact support if you think this is a mistake.", v.url),
+      },
+      {
+        subject: `"${v.product}" 판매가 중지되었습니다`,
+        text: lines(`링고 운영자가 "${v.product}" 상품의 판매를 중지했습니다.`, `사유: ${v.reason}`, "", "기존 구매자는 계속 이용할 수 있습니다. 착오라고 생각되시면 고객센터로 문의해 주세요.", v.url),
+      },
+    )) as Template<{ product: string; reason: string; url: string }>,
+
+  seller_suspended: ((v: { store: string; reason: string; supportEmail: string }, lang) =>
+    pick(
+      lang,
+      {
+        subject: "Your Ringo store has been suspended",
+        text: lines(`Your store "${v.store}" has been suspended, so it is no longer visible and cannot take new orders.`, `Reason: ${v.reason}`, "", `Existing buyers keep what they bought. To appeal, reply to ${v.supportEmail}.`),
+      },
+      {
+        subject: "링고 스토어 운영이 중지되었습니다",
+        text: lines(`"${v.store}" 스토어 운영이 중지되어 노출과 신규 주문이 모두 중단되었습니다.`, `사유: ${v.reason}`, "", `기존 구매자의 이용 권한은 유지됩니다. 이의가 있으시면 ${v.supportEmail}로 회신해 주세요.`),
+      },
+    )) as Template<{ store: string; reason: string; supportEmail: string }>,
+
   inquiry_reply: ((v: { subject: string; body: string; url: string }, lang) =>
     pick(
       lang,

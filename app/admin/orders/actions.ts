@@ -9,7 +9,8 @@ import { getDb } from "@/lib/server/db";
 import { run, type ActionResult } from "@/lib/server/action";
 import { audit } from "@/lib/server/audit";
 import { getT } from "@/lib/server/i18n-server";
-import { recipientLang, sendTemplateMail } from "@/lib/server/mail";
+import { recipientLang } from "@/lib/server/mail";
+import { notify } from "@/lib/server/notify";
 import { appOrigin } from "@/lib/server/request";
 import { formatMoney } from "@/lib/i18n";
 import { CommerceError, addOrderEvent, cancelPendingOrder, deliverOrder, getOrderForActor, markInProgress, refundOrder, rejectRefund } from "@/lib/server/commerce";
@@ -117,7 +118,7 @@ export async function adminResendReceipt(orderId: string): Promise<ActionResult>
     if (!o) throw new CommerceError("not_found");
     if (o.status !== "paid" && o.status !== "refunded") throw new CommerceError("invalid_state");
     const origin = await appOrigin();
-    await sendTemplateMail(db, o.buyerEmail, "order_receipt", await recipientLang(db, { userId: o.buyerId }), {
+    await notify(db, o.buyerEmail, "order_receipt", await recipientLang(db, { userId: o.buyerId }), {
       name: o.buyerName,
       orderNo: o.orderNo,
       product: o.productTitle,

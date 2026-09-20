@@ -99,7 +99,7 @@ export default async function AdminSalesAnalytics({ searchParams }: { searchPara
       </div>
 
       <Panel title={days > 90 ? t("Sales by month", "월별 매출") : t("Sales by day", "일별 매출")} bodyClass="p-0">
-        <DataTable head={[days > 90 ? t("Month", "월") : t("Date", "날짜"), t("Paid orders", "결제 건수"), t("Gross sales", "총 매출"), t("Seller net", "판매자 정산액"), t("Commission", "수수료")]}>
+        <DataTable head={[days > 90 ? t("Month", "월") : t("Date", "날짜"), t("Paid orders", "결제 건수"), t("Gross sales", "총 매출"), t("Seller net", "판매자 정산액"), t("Commission (before refunds)", "수수료 (환불 반영 전)")]}>
           {table.map((d) => (
             <tr key={d.date} className={d.orders ? "" : "text-[#b3b5bc]"}>
               <td className="whitespace-nowrap font-mono text-xs">{d.date}</td>

@@ -149,6 +149,10 @@ export const products = pgTable(
     seoDescription: text("seo_description"),
     publishedAt: ts("published_at"),
     submittedAt: ts("submitted_at"),
+    // Set when a seller changes what buyers receive (files, lessons) on a product that is already on
+    // sale. Selling continues — pulling a live listing because a file was corrected would punish
+    // honest updates — but an operator sees the change and clears the flag once checked.
+    contentChangedAt: ts("content_changed_at"),
     createdAt: created(),
     updatedAt: updated(),
   },
@@ -470,6 +474,10 @@ export const inquiries = pgTable(
     category: text("category").notNull().default("general"),
     subject: text("subject").notNull(),
     status: text("status").$type<InquiryStatus>().notNull().default("open"),
+    // Last time each side looked at the thread. A badge means "unread" only when the other side has
+    // written since: posting a message marks the thread read for its own author.
+    buyerReadAt: ts("buyer_read_at"),
+    staffReadAt: ts("staff_read_at"),
     createdAt: created(),
     updatedAt: updated(),
   },

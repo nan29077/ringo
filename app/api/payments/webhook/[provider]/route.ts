@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import * as s from "@/db/schema";
 import { getDb } from "@/lib/server/db";
 import { getProvider } from "@/lib/server/payments";
@@ -23,17 +23,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
   }
   if (!event.eventId) return new Response("Missing event id", { status: 400 });
   const inserted = await db.insert(s.paymentEvents).values({ provider: providerId, eventId: event.eventId, type: event.type, payload: event.raw as object }).onConflictDoNothing().returning();
-  if (!inserted.length) return Response.json({ ok: true, duplicate: true });
+  let eventRow = inserted[0];
+  if (!eventRow) {
+    // A retry of an event already on file. Skip it only when the earlier attempt actually finished:
+    // one that threw left `processedAt` empty, and answering "duplicate" to the provider's retry
+    // would strand that payment — and the buyer's and seller's notifications — for good.
+    const [existing] = await db.select().from(s.paymentEvents).where(and(eq(s.paymentEvents.provider, providerId), eq(s.paymentEvents.eventId, event.eventId)));
+    if (!existing || existing.processedAt) return Response.json({ ok: true, duplicate: true });
+    eventRow = existing;
+  }
   try {
     if (event.paymentId && /^[0-9a-f-]{36}$/.test(event.paymentId)) {
       if (event.status === "succeeded") await confirmPayment(db, event.paymentId, { providerRef: event.providerRef, raw: event.raw });
       else if (event.status === "failed" || event.status === "cancelled") await failPayment(db, event.paymentId, event.type, event.status);
     }
-    await db.update(s.paymentEvents).set({ processedAt: new Date() }).where(eq(s.paymentEvents.id, inserted[0].id));
+    await db.update(s.paymentEvents).set({ processedAt: new Date(), error: null }).where(eq(s.paymentEvents.id, eventRow.id));
     return Response.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await db.update(s.paymentEvents).set({ error: message }).where(eq(s.paymentEvents.id, inserted[0].id));
+    await db.update(s.paymentEvents).set({ error: message }).where(eq(s.paymentEvents.id, eventRow.id));
     await logError(db, `webhook:${providerId}`, message, { eventId: event.eventId });
     return new Response("Processing error", { status: 500 });
   }

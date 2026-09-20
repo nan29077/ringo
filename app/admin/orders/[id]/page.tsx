@@ -268,9 +268,12 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
                 [t("Total paid", "결제 금액"), <b key="t">{money(o.totalCents)}</b>],
                 [
                   t("Commission", "판매 수수료"),
-                  o.discountCents
-                    ? t(`${money(o.commissionCents)} (${(o.commissionBps / 100).toFixed(2)}% of the ${money(o.subtotalCents)} list price · ${o.commissionBps} bps — the coupon is borne by the seller)`, `${money(o.commissionCents)} (정가 ${money(o.subtotalCents)}의 ${(o.commissionBps / 100).toFixed(2)}% · ${o.commissionBps} bps · 쿠폰 할인은 판매자 부담)`)
-                    : `${money(o.commissionCents)} (${(o.commissionBps / 100).toFixed(2)}% · ${o.commissionBps} bps)`,
+                  !o.discountCents
+                    ? `${money(o.commissionCents)} (${(o.commissionBps / 100).toFixed(2)}% · ${o.commissionBps} bps)`
+                    // The fee never exceeds what the buyer paid, so a deep discount caps it below the list-price rate.
+                    : o.commissionCents < Math.round((o.subtotalCents * o.commissionBps) / 10000)
+                      ? t(`${money(o.commissionCents)} — capped at the amount paid (${(o.commissionBps / 100).toFixed(2)}% of the ${money(o.subtotalCents)} list price would be ${money(Math.round((o.subtotalCents * o.commissionBps) / 10000))})`, `${money(o.commissionCents)} · 결제 금액까지만 부과 (정가 ${money(o.subtotalCents)}의 ${(o.commissionBps / 100).toFixed(2)}%는 ${money(Math.round((o.subtotalCents * o.commissionBps) / 10000))})`)
+                      : t(`${money(o.commissionCents)} (${(o.commissionBps / 100).toFixed(2)}% of the ${money(o.subtotalCents)} list price · ${o.commissionBps} bps — the coupon is borne by the seller)`, `${money(o.commissionCents)} (정가 ${money(o.subtotalCents)}의 ${(o.commissionBps / 100).toFixed(2)}% · ${o.commissionBps} bps · 쿠폰 할인은 판매자 부담)`),
                 ],
                 [t("Seller net", "판매자 정산액"), <b key="n" className="text-[#16794a]">{money(o.sellerNetCents)}</b>],
                 ...(o.refundedCents ? [[t("Refunded", "환불 금액"), `${money(o.refundedCents)} · ${formatDate(o.refundedAt, lang, true)}`] as [string, string]] : []),

@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, count, desc, eq, gt, ilike, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import * as s from "@/db/schema";
-import type { DB } from "./db";
+import type { DB, Tx } from "./db";
 import { likeQ } from "./list";
 import type { Lang } from "../i18n";
 
@@ -152,7 +152,7 @@ export function isPurchasable(row: { product: typeof s.products.$inferSelect; se
 }
 
 /** Recompute the ×10 rating average from non-hidden reviews. */
-export async function recomputeRating(db: DB, productId: string) {
+export async function recomputeRating(db: DB | Tx, productId: string) {
   const [{ avg }] = await db
     .select({ avg: sql<string | null>`avg(${s.productReviews.rating})` })
     .from(s.productReviews)

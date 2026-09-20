@@ -39,6 +39,8 @@ export async function saveLink(db: DB, viewer: Viewer, raw: Record<string, unkno
   const [product] = await db.select().from(s.products).where(eq(s.products.id, input.productId));
   if (!product) throw new CommerceError("not_found");
   const admin = viewer.user.role === "admin";
+  // Callers all go through requireSeller today; checking here too keeps a future caller from slipping past.
+  if (!admin && viewer.seller?.status !== "active") throw new CommerceError("forbidden");
   if (!admin && viewer.seller?.id !== product.sellerId) throw new CommerceError("forbidden");
   const existing = linkId ? (await db.select().from(s.deepLinks).where(eq(s.deepLinks.id, linkId)))[0] : undefined;
   if (linkId && (!existing || (!admin && existing.sellerId !== viewer.seller?.id))) throw new CommerceError("not_found");
@@ -48,8 +50,13 @@ export async function saveLink(db: DB, viewer: Viewer, raw: Record<string, unkno
   const expiryUnchanged = !!existing && minute(existing.expiresAt) === minute(input.expiresAt);
   if (input.expiresAt && input.expiresAt.getTime() < Date.now() && !expiryUnchanged) throw new CommerceError("expiry_past");
   if (input.couponCode) {
+    // The product page promises buyers the coupon will apply, so the same conditions checkout enforces
+    // are checked here: an inactive, expired or other-product coupon must not be attachable.
     const [c] = await db.select().from(s.coupons).where(eq(s.coupons.code, input.couponCode));
     if (!c || (c.sellerId && c.sellerId !== product.sellerId)) throw new CommerceError("coupon_not_applicable");
+    if (c.productId && c.productId !== product.id) throw new CommerceError("coupon_not_applicable");
+    if (!c.active) throw new CommerceError("coupon_invalid");
+    if (c.endsAt && c.endsAt.getTime() < Date.now()) throw new CommerceError("coupon_expired");
   }
   const values = { productId: product.id, sellerId: product.sellerId, name: input.name, source: input.source, medium: input.medium || "link", campaign: input.campaign, destination: input.destination, locale: input.locale, couponCode: input.couponCode, expiresAt: input.expiresAt, updatedAt: new Date() };
   if (linkId) {

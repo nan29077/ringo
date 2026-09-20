@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gt, ilike, inArray, isNotNull, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, gt, ilike, inArray, isNotNull, isNull, ne, not, or, sql, type SQL } from "drizzle-orm";
 import * as s from "@/db/schema";
 import type { DB } from "./db";
 import type { Viewer } from "./auth";
@@ -225,7 +225,9 @@ export async function payoutOverview(db: DB) {
             pendingN: sql<number>`count(*) filter (where ${s.settlements.status} = 'pending')::int`,
           })
           .from(s.settlements)
-          .where(inArray(s.settlements.sellerId, ids))
+          // Adjustment rows are marked paid the moment a batch swallows them, so counting them here
+          // showed a transfer date for sellers who have never actually been paid.
+          .where(and(inArray(s.settlements.sellerId, ids), not(adjustmentSettlementWhere)))
           .groupBy(s.settlements.sellerId)
       : Promise.resolve([]),
   ]);

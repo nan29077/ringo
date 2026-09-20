@@ -5,7 +5,7 @@ import { Heart, LayoutDashboard, Library, LogOut, MessageCircle, Receipt, Shield
 import { useLang } from "@/components/common/lang-provider";
 import { signOut } from "@/app/actions";
 
-export function AccountNav({ name, email, role }: { name: string; email: string; role: "admin" | "seller" | "applicant" | "buyer" }) {
+export function AccountNav({ name, email, role, unreadInquiries = 0 }: { name: string; email: string; role: "admin" | "seller" | "applicant" | "buyer"; unreadInquiries?: number }) {
   const { t } = useLang();
   const path = usePathname();
   const items = [
@@ -13,7 +13,7 @@ export function AccountNav({ name, email, role }: { name: string; email: string;
     { href: "/account/library", label: t("Library", "라이브러리"), icon: Library },
     { href: "/account/orders", label: t("Orders", "주문 내역"), icon: Receipt },
     { href: "/account/wishlist", label: t("Wishlist", "관심 상품"), icon: Heart },
-    { href: "/account/inquiries", label: t("Inquiries", "문의 내역"), icon: MessageCircle },
+    { href: "/account/inquiries", label: t("Inquiries", "문의 내역"), icon: MessageCircle, badge: unreadInquiries },
     { href: "/account/profile", label: t("Profile & security", "프로필 · 보안"), icon: UserRound },
   ];
   return (
@@ -21,7 +21,13 @@ export function AccountNav({ name, email, role }: { name: string; email: string;
       <div className="sf-account-user"><strong>{name}</strong><span>{email}</span></div>
       {items.map((i) => {
         const active = i.exact ? path === i.href : path === i.href || path.startsWith(i.href + "/");
-        return <Link key={i.href} href={i.href} className={active ? "active" : ""} aria-current={active ? "page" : undefined}><i.icon aria-hidden />{i.label}</Link>;
+        return (
+          <Link key={i.href} href={i.href} className={active ? "active" : ""} aria-current={active ? "page" : undefined}>
+            <i.icon aria-hidden />
+            {i.label}
+            {!!i.badge && <span className="sf-nav-badge" aria-label={t(`${i.badge} unread`, `읽지 않음 ${i.badge}건`)}>{i.badge}</span>}
+          </Link>
+        );
       })}
       <hr />
       {role === "admin" && <Link href="/admin"><Shield aria-hidden />{t("Admin console", "관리자 콘솔")}</Link>}

@@ -3,6 +3,7 @@ import { requireSeller } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
 import { getLang } from "@/lib/server/i18n-server";
 import { sellerCounts } from "@/lib/server/seller-center";
+import { expireStaleOrders } from "@/lib/server/commerce";
 import { LangProvider } from "@/components/common/lang-provider";
 import { ConsoleShell, type NavGroup } from "@/components/console/shell";
 
@@ -13,6 +14,9 @@ export default async function SellerLayout({ children }: { children: React.React
   const viewer = await requireSeller();
   const db = await getDb();
   const lang = await getLang("ko");
+  // Same sweep the admin console does: without it a seller sees "awaiting payment" on orders whose
+  // window closed long ago, while the buyer's own list already shows them as expired.
+  await expireStaleOrders(db).catch(() => 0);
   const c = await sellerCounts(db, viewer.seller.id);
 
   const groups: NavGroup[] = [

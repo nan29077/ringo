@@ -1,11 +1,12 @@
 import "server-only";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, isNull, lt, or } from "drizzle-orm";
 import { z } from "zod";
 import * as s from "@/db/schema";
 import type { DB } from "./db";
 import type { Viewer } from "./auth";
 import { CommerceError } from "./commerce";
-import { sendTemplateMail } from "./mail";
+import { getSettings } from "./settings";
+import { notify } from "./notify";
 
 type Inquiry = typeof s.inquiries.$inferSelect;
 
@@ -34,6 +35,20 @@ export async function getInquiryThread(db: DB, viewer: Viewer, inquiryId: string
   return { ...row, access, messages };
 }
 
+/**
+ * Records that this side has now seen the thread. A badge counts a thread as unread only when the
+ * OTHER side wrote after that mark, so posting a message also marks it read for its own author —
+ * otherwise everyone's own reply would light up their own badge.
+ */
+export async function markInquiryRead(db: DB, access: "owner" | "seller" | "admin", inquiryId: string) {
+  const field = access === "owner" ? { buyerReadAt: new Date() } : { staffReadAt: new Date() };
+  await db.update(s.inquiries).set(field).where(eq(s.inquiries.id, inquiryId));
+}
+
+/** SQL for "the other side wrote after I last looked". */
+export const unreadForStaff = or(isNull(s.inquiries.staffReadAt), lt(s.inquiries.staffReadAt, s.inquiries.updatedAt));
+export const unreadForBuyer = or(isNull(s.inquiries.buyerReadAt), lt(s.inquiries.buyerReadAt, s.inquiries.updatedAt));
+
 export const newInquiryInput = z.object({
   subject: z.string().trim().min(2).max(160),
   body: z.string().trim().min(2).max(5000),
@@ -57,8 +72,29 @@ export async function createInquiry(db: DB, viewer: Viewer, raw: Record<string, 
     sellerId = p.sellerId;
   }
   if (["account", "payment"].includes(input.category)) sellerId = null;
-  const [inq] = await db.insert(s.inquiries).values({ userId: viewer.user.id, sellerId, productId: input.productId, orderId: input.orderId, category: input.category, subject: input.subject }).returning();
+  // A suspended store cannot open the seller console, so an inquiry routed to it would never be
+  // answered by anyone. Those go to platform support instead.
+  let sellerContact: { email: string; locale: "en" | "ko" } | null = null;
+  if (sellerId) {
+    const [row] = await db
+      .select({ status: s.sellers.status, email: s.users.email, locale: s.users.locale })
+      .from(s.sellers)
+      .innerJoin(s.users, eq(s.users.id, s.sellers.userId))
+      .where(eq(s.sellers.id, sellerId));
+    if (!row || row.status !== "active") sellerId = null;
+    else sellerContact = { email: row.email, locale: row.locale };
+  }
+  const [inq] = await db.insert(s.inquiries).values({ userId: viewer.user.id, sellerId, productId: input.productId, orderId: input.orderId, category: input.category, subject: input.subject, buyerReadAt: new Date() }).returning();
   await db.insert(s.inquiryMessages).values({ inquiryId: inq.id, authorId: viewer.user.id, authorRole: viewer.user.role, body: input.body });
+  // Tell whoever has to answer. Without this the thread only shows up if they happen to open the console.
+  const base = process.env.APP_URL || "";
+  const vars = { subject: input.subject, body: input.body, from: viewer.user.name || viewer.user.email };
+  if (sellerContact) {
+    await notify(db, sellerContact.email, "inquiry_new", sellerContact.locale, { ...vars, url: `${base}/seller/inquiries/${inq.id}` });
+  } else {
+    const settings = await getSettings(db);
+    await notify(db, settings.site.supportEmail, "inquiry_new", settings.site.defaultLocale, { ...vars, url: `${base}/admin/inquiries/${inq.id}` });
+  }
   return inq;
 }
 
@@ -69,13 +105,31 @@ export async function replyInquiry(db: DB, viewer: Viewer, inquiryId: string, bo
   if (inquiry.status === "closed" && access === "owner") throw new CommerceError("invalid_state");
   await db.insert(s.inquiryMessages).values({ inquiryId, authorId: viewer.user.id, authorRole: access === "owner" ? viewer.user.role : access === "admin" ? "admin" : "seller", body: text });
   const status = access === "owner" ? "open" : "answered";
-  await db.update(s.inquiries).set({ status, updatedAt: new Date() }).where(eq(s.inquiries.id, inquiryId));
+  const now = new Date();
+  await db
+    .update(s.inquiries)
+    .set({ status, updatedAt: now, ...(access === "owner" ? { buyerReadAt: now } : { staffReadAt: now }) })
+    .where(eq(s.inquiries.id, inquiryId));
+  const base = process.env.APP_URL || "";
   if (access !== "owner") {
-    await sendTemplateMail(db, userEmail, "inquiry_reply", userLocale, {
+    await notify(db, userEmail, "inquiry_reply", userLocale, {
       subject: inquiry.subject,
       body: text,
-      url: `${process.env.APP_URL || ""}/account/inquiries/${inquiryId}`,
+      url: `${base}/account/inquiries/${inquiryId}`,
     });
+    return;
+  }
+  // The buyer answered, which re-opens the thread — the other side needs to hear about it too.
+  if (inquiry.sellerId) {
+    const [row] = await db
+      .select({ email: s.users.email, locale: s.users.locale })
+      .from(s.sellers)
+      .innerJoin(s.users, eq(s.users.id, s.sellers.userId))
+      .where(eq(s.sellers.id, inquiry.sellerId));
+    if (row) await notify(db, row.email, "inquiry_new", row.locale, { subject: inquiry.subject, body: text, from: viewer.user.name || viewer.user.email, url: `${base}/seller/inquiries/${inquiryId}` });
+  } else {
+    const settings = await getSettings(db);
+    await notify(db, settings.site.supportEmail, "inquiry_new", settings.site.defaultLocale, { subject: inquiry.subject, body: text, from: viewer.user.name || viewer.user.email, url: `${base}/admin/inquiries/${inquiryId}` });
   }
 }
 

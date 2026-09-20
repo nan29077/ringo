@@ -2,6 +2,7 @@ import Link from "next/link";
 import { and, count, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { ArrowRight } from "lucide-react";
 import * as s from "@/db/schema";
+import { requireAdmin } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
 import { getSettings } from "@/lib/server/settings";
@@ -17,6 +18,7 @@ import { mediaUrl } from "@/lib/server/storage";
 export const metadata = { title: "Dashboard" };
 
 export default async function AdminDashboard() {
+  await requireAdmin(); // the layout checks too, but a page must not rely on its layout alone
   const db = await getDb();
   const { t, lang } = await getT("ko");
   const settings = await getSettings(db);

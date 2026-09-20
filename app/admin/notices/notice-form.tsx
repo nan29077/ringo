@@ -14,11 +14,11 @@ export function NoticeForm({ notice, t }: { notice?: Notice; t: T }) {
         <div className="grid gap-4">
           <div className="grid gap-4 md:grid-cols-[1fr_220px]">
             <Field label={t("Title", "제목")} required><input name="title" className="rc-input" required maxLength={160} defaultValue={notice?.title ?? ""} /></Field>
-            <Field label={t("Audience", "공개 대상")} required>
+            <Field label={t("Audience", "공개 대상")} required hint={t("Store notices are public — a signed-out visitor sees them too.", "스토어 공지는 공개 페이지에 실려 비로그인 방문자도 볼 수 있습니다.")}>
               <select name="audience" className="rc-select" defaultValue={notice?.audience ?? "all"}>
-                <option value="all">{t("Everyone", "전체")}</option>
-                <option value="sellers">{t("Sellers (seller center)", "판매자 (판매자센터)")}</option>
-                <option value="buyers">{t("Buyers (store)", "구매자 (스토어)")}</option>
+                <option value="all">{t("Everyone (store + seller center)", "전체 (스토어 + 판매자센터)")}</option>
+                <option value="sellers">{t("Seller center only (signed-in sellers)", "판매자센터에만 (로그인한 판매자)")}</option>
+                <option value="buyers">{t("Store only (anyone who visits, incl. signed-out)", "스토어에만 (비로그인 방문자 포함 누구나)")}</option>
               </select>
             </Field>
           </div>

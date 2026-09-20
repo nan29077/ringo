@@ -6,7 +6,7 @@ import * as s from "@/db/schema";
 import { requireSeller } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
-import { getInquiryThread } from "@/lib/server/inquiries";
+import { getInquiryThread, markInquiryRead } from "@/lib/server/inquiries";
 import { isUuid } from "@/lib/server/seller-center";
 import { formatDate } from "@/lib/i18n";
 import { inquiryStatus } from "@/lib/status";
@@ -26,6 +26,8 @@ export default async function SellerInquiryDetail({ params }: { params: Promise<
   const [own] = await db.select({ id: s.inquiries.id }).from(s.inquiries).where(and(eq(s.inquiries.id, id), eq(s.inquiries.sellerId, viewer.seller.id)));
   if (!own) notFound();
   const thread = await getInquiryThread(db, viewer, id).catch(() => null);
+  // Opening the thread clears its unread badge for this side.
+  if (thread) await markInquiryRead(db, thread.access, id);
   if (!thread) notFound();
   const { inquiry, userName, messages } = thread;
   const [product, order] = await Promise.all([

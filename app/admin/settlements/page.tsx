@@ -68,7 +68,7 @@ export default async function AdminSettlements({ searchParams }: { searchParams:
                 <td className="text-xs">{noAccount ? <Badge tone="red">{t("Not registered", "미등록")}</Badge> : <span>{x.payoutMethod?.toUpperCase()} · {x.payoutAccountName}</span>}</td>
                 <td className="whitespace-nowrap text-xs">{formatDate(r.lastPaidAt, lang)}{r.pendingSettlements > 0 && <div><Badge tone="amber">{t(`${r.pendingSettlements} awaiting transfer`, `지급 대기 ${r.pendingSettlements}건`)}</Badge></div>}</td>
                 <td>
-                  {r.availableN > 0 ? (
+                  {r.availableN > 0 && r.availableCents > 0 ? (
                     <details>
                       <summary className="rc-btn rc-btn-primary rc-btn-sm cursor-pointer list-none">{t("Create batch", "정산서 생성")}</summary>
                       <ActionForm action={createPayoutBatch} className="mt-2 grid w-64 gap-2" confirm={t(`Create a payout batch for ${x.displayName}?`, `${x.displayName}의 정산서를 생성할까요?`)}>
@@ -79,6 +79,9 @@ export default async function AdminSettlements({ searchParams }: { searchParams:
                         <button className="rc-btn rc-btn-primary rc-btn-sm justify-self-end">{t("Create", "생성")}</button>
                       </ActionForm>
                     </details>
+                  ) : r.availableN > 0 ? (
+                    // Eligible orders exist but refund deductions swallow them, so a batch would only fail.
+                    <span className="text-xs text-[#b42318]">{t("Refund deductions exceed the payout", "환불 차감액이 정산 금액보다 큼")}</span>
                   ) : <span className="text-xs text-[#b3b5bc]">{t("Nothing eligible yet", "정산 가능 주문 없음")}</span>}
                 </td>
               </tr>

@@ -60,7 +60,7 @@ export default async function AdminInquiries({ searchParams }: { searchParams: P
       .where(cond)
       .orderBy(
         sql`case ${s.inquiries.status} when 'open' then 0 when 'answered' then 1 else 2 end`,
-        sql`case when ${s.inquiries.status} = 'open' then extract(epoch from ${s.inquiries.createdAt}) else -extract(epoch from ${s.inquiries.updatedAt}) end`,
+        sql`case when ${s.inquiries.status} = 'open' then extract(epoch from ${s.inquiries.updatedAt}) else -extract(epoch from ${s.inquiries.updatedAt}) end`,
       )
       .limit(size)
       .offset(offset),
@@ -102,7 +102,9 @@ export default async function AdminInquiries({ searchParams }: { searchParams: P
           footer={<Pagination total={total} page={page} size={size} />}
         >
           {rows.map((r) => {
-            const hours = Math.floor((now - r.i.createdAt.getTime()) / 3600000);
+            // Waiting time runs from the last message, not from when the thread was first opened: a thread
+            // re-opened months later is minutes old, and the "2 days unanswered" card already uses updatedAt.
+            const hours = Math.floor((now - r.i.updatedAt.getTime()) / 3600000);
             const cat = inquiryCategories[r.i.category];
             return (
               <tr key={r.i.id}>

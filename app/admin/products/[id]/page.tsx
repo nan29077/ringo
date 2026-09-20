@@ -17,7 +17,7 @@ import { FileUploadButton } from "@/components/common/uploader";
 import { ProductForm } from "@/components/console/product-form";
 import { Stars } from "../../reviews/stars";
 import { setReviewHidden } from "../../reviews/actions";
-import { adminDeleteAsset, adminPublishDraft, adminSaveProduct, approveProduct, changeProductStatus, rejectProduct, toggleProductFlag } from "../actions";
+import { adminDeleteAsset, adminPublishDraft, adminSaveProduct, approveProduct, changeProductStatus, rejectProduct, toggleProductFlag, acknowledgeContentChange } from "../actions";
 
 export const metadata = { title: "Product" };
 
@@ -233,6 +233,12 @@ export default async function AdminProductDetail({ params, searchParams }: { par
           <div className="grid content-start gap-4">
             <Panel title={t("Moderation", "판매 상태 관리")}>
               <div className="grid gap-3">
+                {product.contentChangedAt && (
+                  <>
+                    <Notice tone="warn">{t(`The seller changed what buyers receive on ${formatDate(product.contentChangedAt, "en", true)} while the product was on sale. It keeps selling — check the files and lessons below, then acknowledge.`, `${formatDate(product.contentChangedAt, "ko", true)}에 판매 중인 상태로 판매자가 구매자에게 전달되는 내용(파일·레슨)을 변경했습니다. 판매는 계속되며, 아래 파일과 레슨을 확인한 뒤 확인 처리하세요.`)}</Notice>
+                    <ActionButton action={acknowledgeContentChange.bind(null, product.id)} size="default" className="w-full">{t("Acknowledge change", "변경 확인 완료")}</ActionButton>
+                  </>
+                )}
                 {st === "pending_review" && (
                   <>
                     <Notice>{t(`Submitted ${formatDate(product.submittedAt, "en", true)}. Approve to publish, or reject with a reason the seller will receive by email.`, `${formatDate(product.submittedAt, "ko", true)} 심사 요청. 승인하면 바로 판매되며, 반려 시 사유가 판매자에게 메일로 전달됩니다.`)}</Notice>

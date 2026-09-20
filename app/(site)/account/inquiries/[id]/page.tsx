@@ -5,7 +5,7 @@ import * as s from "@/db/schema";
 import { requireViewer } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
-import { getInquiryThread } from "@/lib/server/inquiries";
+import { getInquiryThread, markInquiryRead } from "@/lib/server/inquiries";
 import { isUuid, pick } from "@/lib/server/storefront";
 import { formatDate } from "@/lib/i18n";
 import { inquiryStatus } from "@/lib/status";
@@ -23,6 +23,8 @@ export default async function InquiryThread({ params }: { params: Promise<{ id: 
   const db = await getDb();
   const { t, lang } = await getT();
   const thread = await getInquiryThread(db, viewer, id).catch(() => null);
+  // Opening the thread clears its unread badge for this side.
+  if (thread) await markInquiryRead(db, thread.access, id);
   if (!thread || thread.inquiry.userId !== viewer.user.id) notFound();
   const { inquiry, messages } = thread;
   const [seller, product, order] = await Promise.all([

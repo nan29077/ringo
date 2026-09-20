@@ -21,7 +21,8 @@
     "test:coupon": "node tests/tools/coupon-math.mjs",
     "test:ui": "node tests/tools/ui-regress.mjs",
     "test:fixes": "node tests/tools/fix-verify.mjs",
-    "test:cross": "node tests/tools/qa3-crossaccount.mjs",
+    "test:qa4": "node tests/tools/qa4-verify.mjs",
+    "test:policy": "node tests/tools/qa5-policy.mjs",
     "test:security": "node tests/tools/security-regress.mjs",
     "test:crawl": "node tests/tools/crawl.mjs admin@ringo.local /admin /admin 300"
   },

@@ -1,15 +1,17 @@
 import "server-only";
-import { and, eq, inArray, isNull, lt, lte, ne, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import * as s from "@/db/schema";
 import type { DB, Tx } from "./db";
 import type { Viewer } from "./auth";
 import { getSettings } from "./settings";
 import { newOrderNo } from "./ids";
 import { getProvider } from "./payments";
-import { recipientLang, sendTemplateMail } from "./mail";
+import { recipientLang } from "./mail";
+import { notify } from "./notify";
 import { logError } from "./audit";
 import { formatMoney } from "../i18n";
 import { zonedDateKey } from "../time";
+import { recomputeRating } from "./storefront";
 
 export class CommerceError extends Error {
   constructor(public code: string, message?: string) {
@@ -41,12 +43,23 @@ export async function validateCoupon(db: DB, code: string, product: Product, buy
   if (coupon.endsAt && coupon.endsAt.getTime() < now) throw new CommerceError("coupon_expired");
   if (coupon.sellerId && coupon.sellerId !== product.sellerId) throw new CommerceError("coupon_not_applicable");
   if (coupon.productId && coupon.productId !== product.id) throw new CommerceError("coupon_not_applicable");
-  if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) throw new CommerceError("coupon_exhausted");
   if (product.priceCents < coupon.minOrderCents) throw new CommerceError("coupon_min_order");
+  // `usedCount` only rises when an order is PAID, so an unpaid order has to hold its use as well.
+  // Without that hold a buyer could stack several unpaid orders — each one passing the limit check
+  // because nothing has been paid yet — and then pay them all, using a one-per-buyer coupon N times.
+  // The hold lasts exactly as long as the order can still be paid, so an abandoned order frees it.
+  const settings = await getSettings(db);
+  const holdFrom = new Date(now - settings.commerce.pendingPaymentMinutes * 60000);
+  const heldWhere = and(eq(s.orders.status, "pending_payment"), gte(s.orders.createdAt, holdFrom));
+  const [{ held }] = await db
+    .select({ held: sql<number>`count(*)::int` })
+    .from(s.orders)
+    .where(and(eq(s.orders.couponId, coupon.id), heldWhere));
+  if (coupon.usageLimit != null && coupon.usedCount + held >= coupon.usageLimit) throw new CommerceError("coupon_exhausted");
   const [{ used }] = await db
     .select({ used: sql<number>`count(*)::int` })
     .from(s.orders)
-    .where(and(eq(s.orders.couponId, coupon.id), eq(s.orders.buyerId, buyerId), eq(s.orders.status, "paid")));
+    .where(and(eq(s.orders.couponId, coupon.id), eq(s.orders.buyerId, buyerId), or(eq(s.orders.status, "paid"), heldWhere)));
   if (used >= coupon.perUserLimit) throw new CommerceError("coupon_used");
   return { coupon, discountCents: couponDiscount(coupon, product.priceCents) };
 }
@@ -157,6 +170,16 @@ export async function createOrder(
   return order;
 }
 
+/** True when the order's product is still published and visible and its store is still active. */
+async function isStillSellable(db: DB | Tx, order: Pick<Order, "productId" | "sellerId">) {
+  const [row] = await db
+    .select({ status: s.products.status, visible: s.products.visible, seller: s.sellers.status })
+    .from(s.products)
+    .innerJoin(s.sellers, eq(s.sellers.id, s.products.sellerId))
+    .where(eq(s.products.id, order.productId));
+  return !!row && row.status === "published" && row.visible && row.seller === "active";
+}
+
 export async function startPayment(db: DB, viewer: Viewer, orderId: string, providerId: string, origin: string) {
   const [order] = await db.select().from(s.orders).where(eq(s.orders.id, orderId));
   if (!order || order.buyerId !== viewer.user.id) throw new CommerceError("not_found");
@@ -164,6 +187,8 @@ export async function startPayment(db: DB, viewer: Viewer, orderId: string, prov
   const settings = await getSettings(db);
   // The payment window is enforced here too, not only by the scheduled cleanup.
   if (await expireOrderIfStale(db, order, viewer)) throw new CommerceError("order_expired");
+  // `createOrder` checked this, but the product or the store may have been suspended since.
+  if (!(await isStillSellable(db, order))) throw new CommerceError("product_unavailable");
   const provider = getProvider(providerId);
   if (!provider || !provider.isAvailable() || !settings.payments.enabledProviders.includes(provider.id)) throw new CommerceError("provider_unavailable");
   const [payment] = await db
@@ -200,37 +225,48 @@ export async function confirmPayment(db: DB, paymentId: string, info: { provider
     const [payment] = await tx.select().from(s.payments).where(eq(s.payments.id, paymentId)).for("update");
     if (!payment) throw new CommerceError("not_found");
     const [order] = await tx.select().from(s.orders).where(eq(s.orders.id, payment.orderId)).for("update");
-    if (payment.status === "succeeded") return { order, changed: false };
+    if (payment.status === "succeeded") return { order, changed: false, delivered: false };
     if (payment.amountCents !== order.totalCents) throw new CommerceError("amount_mismatch");
     await tx.update(s.payments).set({ status: "succeeded", providerRef: info.providerRef ?? payment.providerRef, method: info.method ?? payment.method, raw: (info.raw as object) ?? null, updatedAt: new Date() }).where(eq(s.payments.id, payment.id));
     if (order.status !== "pending_payment") {
       // Paid after cancel/expiry: keep money traceable for manual refund.
       await tx.insert(s.orderEvents).values({ orderId: order.id, type: "late_payment", message: `Payment received while order was ${order.status}. Refund manually.` });
-      return { order, changed: false };
+      return { order, changed: false, delivered: false };
     }
     const [product] = await tx.select().from(s.products).where(eq(s.products.id, order.productId));
     const now = new Date();
     const service = product.deliveryType === "service";
+    // The product or its store may have been suspended between checkout and this callback. The money
+    // has already moved, so the order is still recorded as paid — otherwise it could never be refunded
+    // through the normal tooling — but nothing is delivered and it is queued for a refund straight away.
+    const sellable = await isStillSellable(tx, order);
     const [paid] = await tx
       .update(s.orders)
       .set({
         status: "paid",
         paidAt: now,
         updatedAt: now,
-        fulfillmentStatus: service ? "pending" : "not_required",
-        dueAt: service ? new Date(now.getTime() + (product.deliveryDays ?? 7) * 86400000) : null,
+        fulfillmentStatus: sellable && service ? "pending" : "not_required",
+        dueAt: sellable && service ? new Date(now.getTime() + (product.deliveryDays ?? 7) * 86400000) : null,
+        ...(sellable ? {} : { refundStatus: "requested" as const, refundReason: "Product or store was unavailable when the payment completed." }),
       })
       .where(eq(s.orders.id, order.id))
       .returning();
-    await tx.insert(s.entitlements).values({ userId: order.buyerId, productId: order.productId, orderId: order.id }).onConflictDoNothing();
-    await tx.update(s.products).set({ salesCount: sql`${s.products.salesCount} + 1` }).where(eq(s.products.id, order.productId));
+    if (sellable) {
+      await tx.insert(s.entitlements).values({ userId: order.buyerId, productId: order.productId, orderId: order.id }).onConflictDoNothing();
+      await tx.update(s.products).set({ salesCount: sql`${s.products.salesCount} + 1` }).where(eq(s.products.id, order.productId));
+    }
     if (order.couponId) await tx.update(s.coupons).set({ usedCount: sql`${s.coupons.usedCount} + 1` }).where(eq(s.coupons.id, order.couponId));
     await tx.insert(s.orderEvents).values({ orderId: order.id, type: "paid", message: `Payment succeeded (${payment.provider})` });
+    if (!sellable) {
+      await tx.insert(s.orderEvents).values({ orderId: order.id, type: "refund_requested", message: "Product or store was unavailable at payment time. Nothing was delivered — refund this order." });
+    }
     // Cancel the buyer's other pending orders for the same product.
     await tx.update(s.orders).set({ status: "cancelled", cancelledAt: now, updatedAt: now }).where(and(eq(s.orders.buyerId, order.buyerId), eq(s.orders.productId, order.productId), eq(s.orders.status, "pending_payment"), ne(s.orders.id, order.id)));
-    return { order: paid, changed: true };
+    return { order: paid, changed: true, delivered: sellable };
   });
-  if (result.changed) await notifyPaid(db, result.order);
+  // A buyer who got nothing must not be told to open their library; the refund queue carries it instead.
+  if (result.changed && result.delivered) await notifyPaid(db, result.order);
   return result.order;
 }
 
@@ -248,7 +284,7 @@ async function notifyPaid(db: DB, order: Order) {
     .innerJoin(s.users, eq(s.users.id, s.sellers.userId))
     .where(eq(s.sellers.id, order.sellerId));
   const origin = process.env.APP_URL || "";
-  await sendTemplateMail(db, order.buyerEmail, "order_paid_buyer", await recipientLang(db, { userId: order.buyerId }), {
+  await notify(db, order.buyerEmail, "order_paid_buyer", await recipientLang(db, { userId: order.buyerId }), {
     name: order.buyerName,
     orderNo: order.orderNo,
     product: order.productTitle,
@@ -259,7 +295,7 @@ async function notifyPaid(db: DB, order: Order) {
     libraryUrl: `${origin}/account/library`,
   });
   if (seller) {
-    await sendTemplateMail(db, seller.email, "order_paid_seller", seller.locale, {
+    await notify(db, seller.email, "order_paid_seller", seller.locale, {
       store: seller.name,
       orderNo: order.orderNo,
       product: order.productTitle,
@@ -308,6 +344,9 @@ export async function expireStaleOrders(db: DB) {
   const ids = stale.map((o) => o.id);
   await db.update(s.orders).set({ status: "expired", updatedAt: new Date() }).where(inArray(s.orders.id, ids));
   await db.update(s.payments).set({ status: "cancelled", failureReason: "expired", updatedAt: new Date() }).where(and(inArray(s.payments.orderId, ids), eq(s.payments.status, "pending")));
+  // The single-order path records this too; without it a buyer opening an order expired in bulk sees
+  // the "payment window passed" badge over a timeline that stops at "order created".
+  await db.insert(s.orderEvents).values(ids.map((orderId) => ({ orderId, type: "expired", message: "Payment window passed" })));
   return ids.length;
 }
 
@@ -336,7 +375,7 @@ export async function deliverOrder(db: DB, viewer: Viewer, orderId: string, note
   if (!note.trim()) throw new CommerceError("note_required");
   await db.update(s.orders).set({ fulfillmentStatus: "delivered", deliveryNote: note.trim().slice(0, 4000), deliveredAt: new Date(), updatedAt: new Date() }).where(eq(s.orders.id, orderId));
   await addOrderEvent(db, orderId, "delivered", "Delivery sent to buyer", viewer);
-  await sendTemplateMail(db, order.buyerEmail, "order_delivered", await recipientLang(db, { userId: order.buyerId }), {
+  await notify(db, order.buyerEmail, "order_delivered", await recipientLang(db, { userId: order.buyerId }), {
     orderNo: order.orderNo,
     product: order.productTitle,
     note: note.trim(),
@@ -361,7 +400,7 @@ export async function rejectRefund(db: DB, viewer: Viewer, orderId: string, reas
   if (!reason.trim()) throw new CommerceError("reason_required");
   await db.update(s.orders).set({ refundStatus: "rejected", refundRejectReason: reason.trim().slice(0, 2000), updatedAt: new Date() }).where(eq(s.orders.id, orderId));
   await addOrderEvent(db, orderId, "refund_rejected", `Refund rejected: ${reason.trim().slice(0, 200)}`, viewer);
-  await sendTemplateMail(db, order.buyerEmail, "refund_rejected", await recipientLang(db, { userId: order.buyerId }), { orderNo: order.orderNo, reason: reason.trim() });
+  await notify(db, order.buyerEmail, "refund_rejected", await recipientLang(db, { userId: order.buyerId }), { orderNo: order.orderNo, reason: reason.trim() });
 }
 
 /**
@@ -396,16 +435,24 @@ export async function refundOrder(db: DB, viewer: Viewer, orderId: string, reaso
       .where(and(eq(s.orders.id, orderId), eq(s.orders.status, "paid")))
       .returning({ id: s.orders.id });
     if (!claimed.length) throw new CommerceError("invalid_state");
+    // Re-read inside the transaction: the snapshot above was taken before the provider call, and a
+    // settlement created while that call was in flight would otherwise be missed, paying out an
+    // order that has just been refunded.
+    const [current] = await tx.select().from(s.orders).where(eq(s.orders.id, orderId));
     await tx.insert(s.refunds).values({ orderId, paymentId: payment?.id, amountCents: order.totalCents, reason: (opts.manual ? "[manual] " : "") + reason, status: "succeeded", providerRef, processedBy: viewer.user.id });
     if (payment) await tx.update(s.payments).set({ status: "refunded", updatedAt: now }).where(eq(s.payments.id, payment.id));
     await tx.update(s.entitlements).set({ status: "revoked", revokedAt: now }).where(eq(s.entitlements.orderId, orderId));
     await tx.update(s.products).set({ salesCount: sql`greatest(${s.products.salesCount} - 1, 0)` }).where(eq(s.products.id, order.productId));
     // Give the coupon use back, so the total limit matches the per-buyer limit (which counts paid orders).
     if (order.couponId) await tx.update(s.coupons).set({ usedCount: sql`greatest(${s.coupons.usedCount} - 1, 0)` }).where(eq(s.coupons.id, order.couponId));
+    // A purchase that was paid back must stop vouching for the product: the review comes down and the
+    // average is recomputed without it. It is hidden rather than deleted so the history stays auditable.
+    const hiddenReviews = await tx.update(s.productReviews).set({ hidden: true }).where(and(eq(s.productReviews.orderId, orderId), eq(s.productReviews.hidden, false))).returning({ id: s.productReviews.id });
+    if (hiddenReviews.length) await recomputeRating(tx, order.productId);
     await tx.insert(s.orderEvents).values({ orderId, type: "refunded", message: `Refunded ${formatMoney(order.totalCents, order.currency)}${opts.manual ? " (manual)" : ""}: ${reason.slice(0, 200)}`, actorId: viewer.user.id, actorRole: viewer.user.role });
-    await adjustSettlementForRefund(tx, order, viewer, now);
+    await adjustSettlementForRefund(tx, current ?? order, viewer, now);
   });
-  await sendTemplateMail(db, order.buyerEmail, "refund_completed", await recipientLang(db, { userId: order.buyerId }), {
+  await notify(db, order.buyerEmail, "refund_completed", await recipientLang(db, { userId: order.buyerId }), {
     orderNo: order.orderNo,
     product: order.productTitle,
     amount: formatMoney(order.totalCents, order.currency),
@@ -439,8 +486,12 @@ async function adjustSettlementForRefund(tx: Tx, order: Order, viewer: Viewer, n
     // The "[deducted]" line described deductions that have just been released, so it no longer applies.
     const kept = (settlement.memo ?? "").split("\n").filter((line) => !line.startsWith("[deducted]")).join("\n").trim();
     const memo = [kept, note].filter(Boolean).join("\n").slice(0, 2000);
-    if (agg.n === 0) {
-      // Nothing is left in the batch, so its totals must not keep claiming a payout.
+    if (agg.n === 0 || agg.net <= 0) {
+      // Nothing is left to pay out — the batch is empty, or what remains nets to zero or less (a deep
+      // coupon leaves orders worth nothing to the seller). `markSettlementPaid` would refuse such a
+      // batch forever while its orders stayed locked to it, so the batch is cancelled and they go
+      // back into the pool for the next settlement.
+      await tx.update(s.orders).set({ settlementId: null }).where(eq(s.orders.settlementId, settlement.id));
       await tx.update(s.settlements).set({ status: "cancelled", orderCount: 0, grossCents: 0, commissionCents: 0, netCents: 0, memo }).where(eq(s.settlements.id, settlement.id));
     } else {
       const [span] = await tx.select({ first: sql<Date | null>`min(${s.orders.paidAt})`.mapWith((v) => (v ? new Date(v) : null)) }).from(s.orders).where(eq(s.orders.settlementId, settlement.id));
@@ -561,6 +612,13 @@ export async function markSettlementPaid(db: DB, viewer: Viewer, settlementId: s
   if (row.netCents <= 0) throw new CommerceError("nothing_to_pay_out");
   // `merged:` marks a deduction consumed by a batch; an admin must not be able to forge one through this field.
   if (/^merged:/i.test(reference.trim())) throw new CommerceError("reference_reserved");
+  // Batching excludes orders with an open refund request, but one can be opened after the batch was
+  // created. Both consoles promise the buyer that such an order is held back, so honour that here.
+  const [{ pendingRefunds }] = await db
+    .select({ pendingRefunds: sql<number>`count(*)::int` })
+    .from(s.orders)
+    .where(and(eq(s.orders.settlementId, settlementId), eq(s.orders.refundStatus, "requested")));
+  if (pendingRefunds > 0) throw new CommerceError("refund_open_in_batch");
   // The status is in the WHERE so a batch cancelled or recomputed in the meantime is never flipped to paid.
   const [paid] = await db
     .update(s.settlements)
@@ -570,7 +628,7 @@ export async function markSettlementPaid(db: DB, viewer: Viewer, settlementId: s
   if (!paid) throw new CommerceError("invalid_state");
   const [seller] = await db.select({ email: s.users.email, locale: s.users.locale }).from(s.sellers).innerJoin(s.users, eq(s.users.id, s.sellers.userId)).where(eq(s.sellers.id, row.sellerId));
   if (seller) {
-    await sendTemplateMail(db, seller.email, "payout_paid", seller.locale, {
+    await notify(db, seller.email, "payout_paid", seller.locale, {
       amount: formatMoney(row.netCents, row.currency),
       orderCount: row.orderCount,
       reference: reference.slice(0, 200),
@@ -583,8 +641,15 @@ export async function cancelSettlement(db: DB, settlementId: string) {
   const [row] = await db.select().from(s.settlements).where(eq(s.settlements.id, settlementId));
   if (!row || row.status !== "pending") throw new CommerceError("invalid_state");
   await db.transaction(async (tx) => {
+    // The status is in the WHERE, not only in the check above: without it a cancel that raced a
+    // "mark paid" would strip the orders off an already-transferred payout and pay them out twice.
+    const [cancelled] = await tx
+      .update(s.settlements)
+      .set({ status: "cancelled" })
+      .where(and(eq(s.settlements.id, settlementId), eq(s.settlements.status, "pending")))
+      .returning({ id: s.settlements.id });
+    if (!cancelled) throw new CommerceError("invalid_state");
     await tx.update(s.orders).set({ settlementId: null }).where(eq(s.orders.settlementId, settlementId));
-    await tx.update(s.settlements).set({ status: "cancelled" }).where(eq(s.settlements.id, settlementId));
     // Refund deductions merged into this batch go back to pending so the next payout applies them.
     await releaseMergedAdjustments(tx, settlementId);
   });

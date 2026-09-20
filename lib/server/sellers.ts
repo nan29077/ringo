@@ -7,7 +7,8 @@ import type { DB } from "./db";
 import type { Viewer } from "./auth";
 import { CommerceError } from "./commerce";
 import { getSettings } from "./settings";
-import { sendTemplateMail } from "./mail";
+
+import { notify } from "./notify";
 
 export const sellerProfileInput = z.object({
   displayName: z.string().trim().min(2).max(60),
@@ -64,7 +65,7 @@ export async function reviewSeller(db: DB, viewer: Viewer, sellerId: string, dec
   await db.update(s.sellers).set({ status: decision === "approve" ? "active" : "rejected", rejectReason: decision === "reject" ? reason!.trim() : null, reviewedBy: viewer.user.id, reviewedAt: new Date(), updatedAt: new Date() }).where(eq(s.sellers.id, sellerId));
   if (decision === "approve" && row.user.role === "buyer") await db.update(s.users).set({ role: "seller" }).where(eq(s.users.id, row.user.id));
   const origin = process.env.APP_URL || "";
-  await sendTemplateMail(db, row.user.email, "seller_review", row.user.locale, {
+  await notify(db, row.user.email, "seller_review", row.user.locale, {
     approved: decision === "approve",
     store: row.seller.displayName,
     reason: reason?.trim() ?? null,
@@ -78,4 +79,10 @@ export async function setSellerStatus(db: DB, viewer: Viewer, sellerId: string, 
   const [row] = await db.select().from(s.sellers).where(eq(s.sellers.id, sellerId));
   if (!row || !["active", "suspended"].includes(row.status)) throw new CommerceError("invalid_state");
   await db.update(s.sellers).set({ status, adminMemo: reason ? `${zonedDateKey()} ${status}: ${reason}\n${row.adminMemo ?? ""}`.slice(0, 4000) : row.adminMemo, updatedAt: new Date() }).where(eq(s.sellers.id, sellerId));
+  // A suspended seller loses the console, so the email is the only place they can learn why.
+  if (status === "suspended") {
+    const [user] = await db.select({ email: s.users.email, locale: s.users.locale }).from(s.users).where(eq(s.users.id, row.userId));
+    const settings = await getSettings(db);
+    if (user) await notify(db, user.email, "seller_suspended", user.locale, { store: row.displayName, reason: reason?.trim() || "-", supportEmail: settings.site.supportEmail });
+  }
 }

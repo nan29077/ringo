@@ -9,7 +9,7 @@ import { run, type ActionResult } from "@/lib/server/action";
 import { audit } from "@/lib/server/audit";
 import { getT } from "@/lib/server/i18n-server";
 import { CommerceError } from "@/lib/server/commerce";
-import { reviewProduct, saveProduct, setProductStatus, submitProduct, deleteProductAsset } from "@/lib/server/catalog";
+import { reviewProduct, saveProduct, setProductStatus, submitProduct, deleteProductAsset, clearContentChange } from "@/lib/server/catalog";
 
 const uuid = z.string().uuid();
 const reasonText = z.string().trim().max(1000);
@@ -24,6 +24,19 @@ export async function approveProduct(id: string): Promise<ActionResult> {
     await audit(db, viewer, "product.approve", "product", productId, { from: "pending_review", to: "published" });
     revalidatePath("/admin", "layout");
     return { ok: true, message: t("Product approved and published.", "상품을 승인하고 판매를 시작했습니다.") };
+  }, "ko");
+}
+
+export async function acknowledgeContentChange(id: string): Promise<ActionResult> {
+  return run(async () => {
+    const viewer = await requireAdmin();
+    const db = await getDb();
+    const { t } = await getT("ko");
+    const productId = uuid.parse(id);
+    await clearContentChange(db, viewer, productId);
+    await audit(db, viewer, "product.content_change_ack", "product", productId);
+    revalidatePath("/admin", "layout");
+    return { ok: true, message: t("Change acknowledged.", "변경 내용을 확인 처리했습니다.") };
   }, "ko");
 }
 

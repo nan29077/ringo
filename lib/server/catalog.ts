@@ -8,7 +8,8 @@ import { CommerceError } from "./commerce";
 import { getSettings } from "./settings";
 import { slugify } from "./ids";
 import { randomCode } from "./ids";
-import { sendTemplateMail } from "./mail";
+
+import { notify } from "./notify";
 import { storage } from "./storage";
 
 type Product = typeof s.products.$inferSelect;
@@ -31,7 +32,8 @@ export const productInput = z.object({
   compareAt: z.union([z.literal(""), money]).optional().transform((v) => (v === "" || v === undefined ? null : v)),
   deliveryDays: z.union([z.literal(""), z.coerce.number().int().min(1).max(180)]).optional().transform((v) => (v === "" || v === undefined ? null : v)),
   lessons: z.string().max(10000).optional(),
-  coverKey: optionalText(300),
+  // Only a preset name or an uploaded public key: a free-form value could point the <img> anywhere.
+  coverKey: optionalText(300).refine((v) => v == null || /^(preset:[a-z0-9-]{1,60}|public\/[A-Za-z0-9._\/-]{1,280})$/.test(v), { message: "Invalid cover" }),
   seoTitle: optionalText(160),
   seoDescription: optionalText(300),
 });
@@ -123,6 +125,8 @@ export async function saveProduct(db: DB, viewer: Viewer, raw: Record<string, un
   const sellerId = existing?.sellerId ?? (viewer.user.role === "admin" ? opts.sellerId : viewer.seller?.id);
   if (!sellerId) throw new CommerceError("forbidden");
   if (!existing && viewer.user.role !== "admin" && viewer.seller?.status !== "active") throw new CommerceError("forbidden");
+  // A product an operator suspended is evidence: uploads are already blocked, so edits are too.
+  if (existing?.status === "suspended" && viewer.user.role !== "admin") throw new CommerceError("forbidden");
   const deliveryType = category.deliveryType;
   if (input.compareAt != null && input.compareAt <= input.price) throw new CommerceError("compare_at_too_low");
   // The delivery type decides what buyers receive (files, lessons, a made-to-order service). Once a product has been
@@ -155,6 +159,8 @@ export async function saveProduct(db: DB, viewer: Viewer, raw: Record<string, un
     if (existing.status === "published") await assertDeliverable(db, { id: existing.id, deliveryType, lessons: values.lessons });
     const slug = input.slug && input.slug !== existing.slug ? await uniqueSlug(db, input.slug, existing.id, { strict: true }) : existing.slug;
     const [row] = await db.update(s.products).set({ ...values, slug }).where(eq(s.products.id, existing.id)).returning();
+    // Lessons are the deliverable for a course, so editing them on a live product is a content change.
+    if (JSON.stringify(existing.lessons ?? []) !== JSON.stringify(row.lessons ?? [])) await flagContentChange(db, viewer, existing);
     return Object.assign(row, { changes: productChanges(existing, row) });
   }
   const settings = await getSettings(db);
@@ -204,10 +210,13 @@ export async function reviewProduct(db: DB, viewer: Viewer, productId: string, d
   await db.update(s.products).set({
     status: decision === "approve" ? "published" : "rejected",
     rejectReason: decision === "reject" ? reason!.trim().slice(0, 1000) : null,
-    publishedAt: decision === "approve" ? new Date() : row.product.publishedAt,
+    // `publishedAt` is the live approval marker: a seller may re-open a product they paused only
+    // while it is set. Clearing it on rejection is what stops the seller walking a rejected product
+    // back to "on sale" on their own (archive → restore to draft → resume) without a new review.
+    publishedAt: decision === "approve" ? new Date() : null,
     updatedAt: new Date(),
   }).where(eq(s.products.id, productId));
-  await sendTemplateMail(db, row.email, "product_review", row.locale, { approved: decision === "approve", product: row.product.titleEn, reason: reason?.trim() ?? null });
+  await notify(db, row.email, "product_review", row.locale, { approved: decision === "approve", product: (row.locale === "ko" ? row.product.titleKo : row.product.titleEn) || row.product.titleEn, reason: reason?.trim() ?? null });
 }
 
 /** Status changes available outside of review. */
@@ -219,12 +228,36 @@ export async function setProductStatus(db: DB, viewer: Viewer, productId: string
   if (status === "archived" && product.status === "pending_review" && !admin) throw new CommerceError("invalid_state");
   if (status === "suspended" && !admin) throw new CommerceError("forbidden");
   if (status === "published") {
-    // Sellers can re-open products they paused (draft) only if previously approved; admins can always publish.
+    // Sellers can re-open products they paused (draft) only while the approval still stands; a
+    // rejection clears `publishedAt`, so a rejected product can only go back on sale through review.
+    // Admins can always publish.
     if (!admin && !(product.status === "draft" && product.publishedAt)) throw new CommerceError("forbidden");
     if (!admin && product.status === "suspended") throw new CommerceError("forbidden");
   }
   if (!admin && product.status === "suspended") throw new CommerceError("forbidden");
   await db.update(s.products).set({ status, rejectReason: status === "suspended" ? reason?.slice(0, 1000) ?? null : product.rejectReason, publishedAt: status === "published" ? product.publishedAt ?? new Date() : product.publishedAt, updatedAt: new Date() }).where(eq(s.products.id, productId));
+  // Taking a product off sale is a moderation decision like a rejection, so it is told the same way.
+  if (status === "suspended") {
+    const [owner] = await db.select({ email: s.users.email, locale: s.users.locale }).from(s.sellers).innerJoin(s.users, eq(s.users.id, s.sellers.userId)).where(eq(s.sellers.id, product.sellerId));
+    if (owner) await notify(db, owner.email, "product_suspended", owner.locale, { product: (owner.locale === "ko" ? product.titleKo : product.titleEn) || product.titleEn, reason: reason?.trim() || "-", url: `${process.env.APP_URL || ""}/seller/products/${productId}` });
+  }
+}
+
+/**
+ * Marks a live product whose deliverables changed. Sales continue — taking a listing down because a
+ * seller corrected a file would punish honest updates, and buyers who already paid keep access
+ * either way — but the change must not pass unseen, so an operator gets it in their queue and
+ * clears the flag once checked. Admin edits are not flagged: an operator is the reviewer.
+ */
+export async function flagContentChange(db: DB, viewer: Viewer, product: Pick<Product, "id" | "status">) {
+  if (viewer.user.role === "admin" || product.status !== "published") return;
+  await db.update(s.products).set({ contentChangedAt: new Date() }).where(eq(s.products.id, product.id));
+}
+
+/** An operator confirms they have looked at a flagged change. */
+export async function clearContentChange(db: DB, viewer: Viewer, productId: string) {
+  if (viewer.user.role !== "admin") throw new CommerceError("forbidden");
+  await db.update(s.products).set({ contentChangedAt: null }).where(eq(s.products.id, productId));
 }
 
 export async function deleteProductAsset(db: DB, viewer: Viewer, assetId: string) {
@@ -232,6 +265,8 @@ export async function deleteProductAsset(db: DB, viewer: Viewer, assetId: string
   if (!asset) throw new CommerceError("not_found");
   await getProductForActor(db, viewer, asset.productId);
   const [product] = await db.select().from(s.products).where(eq(s.products.id, asset.productId));
+  // Same rule as uploads and edits: a seller cannot alter a suspended product's files.
+  if (product?.status === "suspended" && viewer.user.role !== "admin") throw new CommerceError("forbidden");
   const sold = await db.select({ id: s.orders.id }).from(s.orders).where(and(eq(s.orders.productId, asset.productId), eq(s.orders.status, "paid"))).limit(1);
   if (product && (product.deliveryType === "download" || product.deliveryType === "collection") && (product.status === "published" || product.status === "pending_review")) {
     // A product on sale — or waiting for review — must keep something to deliver: replace first, then delete.
@@ -239,6 +274,7 @@ export async function deleteProductAsset(db: DB, viewer: Viewer, assetId: string
     if (n <= 1) throw new CommerceError("last_file_on_sale");
   }
   await db.delete(s.productAssets).where(eq(s.productAssets.id, assetId));
+  if (product) await flagContentChange(db, viewer, product);
   // Lessons that pointed at this file lose their video/attachment link instead of dangling.
   if (product?.lessons?.some((l) => l.assetId === assetId)) {
     await db.update(s.products).set({ lessons: product.lessons.map((l) => (l.assetId === assetId ? { ...l, assetId: null } : l)), updatedAt: new Date() }).where(eq(s.products.id, product.id));

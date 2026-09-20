@@ -38,6 +38,7 @@ const messages: Record<string, [string, string]> = {
   nothing_to_pay_out: ["This settlement has nothing to pay out.", "지급할 금액이 없는 정산서입니다."],
   reference_reserved: ["\"merged:\" is reserved for refund deductions. Use the bank or e-wallet transfer reference.", "\"merged:\"는 환불 차감 전용 표기입니다. 은행·전자지갑 송금 참조번호를 입력하세요."],
   adjustments_exceed_payout: ["Pending refund deductions exceed the payout amount. Settle again after more orders become eligible.", "환불 차감액이 정산 금액보다 큽니다. 정산 가능 주문이 더 쌓인 뒤 다시 시도하세요."],
+  refund_open_in_batch: ["An order in this settlement has an open refund request. Resolve it first, then pay out.", "이 정산서에 환불 요청이 열려 있는 주문이 있습니다. 환불 요청을 먼저 처리한 뒤 지급하세요."],
   amount_mismatch: ["Payment amount does not match the order.", "결제 금액이 주문 금액과 다릅니다."],
   email_taken: ["An account with this email already exists.", "이미 가입된 이메일입니다."],
   invalid_credentials: ["Incorrect email or password.", "이메일 또는 비밀번호가 올바르지 않습니다."],

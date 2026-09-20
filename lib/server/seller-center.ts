@@ -1,6 +1,7 @@
 import "server-only";
-import { and, count, desc, eq, gt, inArray, isNull, not, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, inArray, isNull, ne, not, sql } from "drizzle-orm";
 import * as s from "@/db/schema";
+import { unreadForStaff } from "./inquiries";
 import type { DB } from "./db";
 import { adjustmentSettlementWhere, eligibleSettlementOrders, pendingAdjustments } from "./commerce";
 import { getSettings } from "./settings";
@@ -60,7 +61,8 @@ export async function sellerCounts(db: DB, sellerId: string) {
     n(db.select({ v: count() }).from(s.orders).where(and(eq(s.orders.sellerId, sellerId), eq(s.orders.status, "paid"), inArray(s.orders.fulfillmentStatus, ["pending", "in_progress"])))),
     n(db.select({ v: count() }).from(s.orders).where(and(eq(s.orders.sellerId, sellerId), eq(s.orders.status, "paid"), inArray(s.orders.fulfillmentStatus, ["pending", "in_progress"]), sql`${s.orders.dueAt} < now()`))),
     n(db.select({ v: count() }).from(s.orders).where(and(eq(s.orders.sellerId, sellerId), eq(s.orders.refundStatus, "requested"), eq(s.orders.status, "paid")))),
-    n(db.select({ v: count() }).from(s.inquiries).where(and(eq(s.inquiries.sellerId, sellerId), eq(s.inquiries.status, "open")))),
+    // Unread for the seller: the buyer wrote after the seller last opened the thread.
+    n(db.select({ v: count() }).from(s.inquiries).where(and(eq(s.inquiries.sellerId, sellerId), ne(s.inquiries.status, "closed"), unreadForStaff))),
     n(db.select({ v: count() }).from(s.products).where(and(eq(s.products.sellerId, sellerId), eq(s.products.status, "rejected")))),
     n(db.select({ v: count() }).from(s.products).where(and(eq(s.products.sellerId, sellerId), eq(s.products.status, "pending_review")))),
   ]);

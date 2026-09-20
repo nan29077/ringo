@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { count, eq, and } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull, ne } from "drizzle-orm";
 import * as s from "@/db/schema";
 import { requireAdmin } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
@@ -7,6 +7,7 @@ import { getLang } from "@/lib/server/i18n-server";
 import { LangProvider } from "@/components/common/lang-provider";
 import { ConsoleShell, type NavGroup } from "@/components/console/shell";
 import { expireStaleOrders } from "@/lib/server/commerce";
+import { unreadForStaff } from "@/lib/server/inquiries";
 
 export const metadata: Metadata = { title: { default: "Admin", template: "%s · Ringo Admin" }, robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -18,18 +19,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   await expireStaleOrders(db).catch(() => 0);
   const lang = await getLang("ko");
   const n = async (q: Promise<{ v: number }[]>) => (await q)[0]?.v ?? 0;
-  const [pendingProducts, pendingSellers, refundRequests, openInquiries, pendingService] = await Promise.all([
+  const [pendingProducts, contentChanges, pendingSellers, refundRequests, openInquiries, pendingService] = await Promise.all([
     n(db.select({ v: count() }).from(s.products).where(eq(s.products.status, "pending_review"))),
+    // Live products whose deliverables a seller changed after approval, waiting for an operator to look.
+    n(db.select({ v: count() }).from(s.products).where(isNotNull(s.products.contentChangedAt))),
     n(db.select({ v: count() }).from(s.sellers).where(eq(s.sellers.status, "pending"))),
     n(db.select({ v: count() }).from(s.orders).where(eq(s.orders.refundStatus, "requested"))),
-    n(db.select({ v: count() }).from(s.inquiries).where(and(eq(s.inquiries.status, "open")))),
+    // Only platform-routed threads: seller threads are the seller's queue and were inflating this badge.
+    n(db.select({ v: count() }).from(s.inquiries).where(and(ne(s.inquiries.status, "closed"), isNull(s.inquiries.sellerId), unreadForStaff))),
     n(db.select({ v: count() }).from(s.orders).where(and(eq(s.orders.status, "paid"), eq(s.orders.fulfillmentStatus, "pending")))),
   ]);
 
   const groups: NavGroup[] = [
     { id: "dashboard", en: "Dashboard", ko: "대시보드", icon: "LayoutDashboard", href: "/admin" },
-    { id: "products", en: "Products", ko: "상품 관리", icon: "Package", badge: pendingProducts, items: [
-      { href: "/admin/products", en: "Product list", ko: "상품 목록" },
+    { id: "products", en: "Products", ko: "상품 관리", icon: "Package", badge: pendingProducts + contentChanges, items: [
+      { href: "/admin/products", en: "Product list", ko: "상품 목록", badge: contentChanges },
       { href: "/admin/products/review", en: "Review queue", ko: "상품 심사", badge: pendingProducts },
       { href: "/admin/categories", en: "Categories", ko: "분류 관리" },
       { href: "/admin/reviews", en: "Buyer reviews", ko: "구매평 관리" },

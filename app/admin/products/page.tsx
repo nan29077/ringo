@@ -2,6 +2,7 @@ import Link from "next/link";
 import { count, desc, eq } from "drizzle-orm";
 import { Plus } from "lucide-react";
 import * as s from "@/db/schema";
+import { requireAdmin } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
 import { getSettings } from "@/lib/server/settings";
@@ -19,6 +20,7 @@ import { toggleProductFlag } from "./actions";
 export const metadata = { title: "Products" };
 
 export default async function AdminProducts({ searchParams }: { searchParams: Promise<SP> }) {
+  await requireAdmin(); // the layout checks too, but a page must not rely on its layout alone
   const sp = await searchParams;
   const { page, size, offset } = listParams(sp);
   const { t, lang } = await getT("ko");
@@ -80,7 +82,10 @@ export default async function AdminProducts({ searchParams }: { searchParams: Pr
                   </div>
                 </div>
               </td>
-              <td><StatusBadge map={deliveryType} value={p.deliveryType} lang={lang} /></td>
+              <td>
+                <StatusBadge map={deliveryType} value={p.deliveryType} lang={lang} />
+                {p.contentChangedAt && <div className="mt-1"><Badge tone="amber">{t("Content changed", "콘텐츠 변경")}</Badge></div>}
+              </td>
               <td className="whitespace-nowrap">
                 <b>{formatMoney(p.priceCents, p.currency, lang)}</b>
                 {p.compareAtCents && <div className="text-[11px] text-[#9a9ca5] line-through">{formatMoney(p.compareAtCents, p.currency, lang)}</div>}
