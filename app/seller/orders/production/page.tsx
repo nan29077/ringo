@@ -8,7 +8,7 @@ import { PageHeader, Panel, StatCard } from "@/components/console/ui";
 import { Pagination } from "@/components/console/filters";
 import { OrderTable } from "../order-table";
 
-export const metadata = { title: "Production queue" };
+export const metadata = { title: "Orders to make" };
 
 export default async function SellerProduction({ searchParams }: { searchParams: Promise<SP> }) {
   const viewer = await requireSeller();
@@ -25,7 +25,7 @@ export default async function SellerProduction({ searchParams }: { searchParams:
   ]);
   return (
     <>
-      <PageHeader title={t("Production queue", "제작 대기열")} description={t("Paid service orders that still need delivery, earliest due date first.", "납품이 필요한 결제 완료 제작 주문입니다. 납기일이 빠른 순으로 표시됩니다.")} />
+      <PageHeader title={t("Orders to make", "제작할 주문")} description={t("Paid service orders that still need delivery, earliest due date first.", "납품이 필요한 결제 완료 제작 주문입니다. 납기일이 빠른 순으로 표시됩니다.")} />
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <StatCard label={t("Open service orders", "진행할 제작 주문")} value={total} />
         <StatCard label={t("Not started", "제작 대기")} value={waiting} />

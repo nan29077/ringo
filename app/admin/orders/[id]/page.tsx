@@ -10,7 +10,7 @@ import { getSettings } from "@/lib/server/settings";
 import { holdReasons, isUuid } from "@/lib/server/seller-center";
 import { mediaUrl } from "@/lib/server/storage";
 import { bytes, formatDate, formatMoney } from "@/lib/i18n";
-import { deliveryType, fulfillmentStatus, label, orderEventType, orderStatus, paymentStatus, refundStatus, settlementStatus, userStatus } from "@/lib/status";
+import { deliveryType, fulfillmentStatus, eventDetail, label, orderEventType, orderStatus, paymentStatus, refundStatus, settlementStatus, userStatus } from "@/lib/status";
 import { PageHeader, Panel, DetailList, Notice, DataTable, EmptyState, Badge } from "@/components/console/ui";
 import { StatusBadge } from "@/components/console/status-badge";
 import { ActionButton, ActionForm } from "@/components/common/action-form";
@@ -248,7 +248,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
                     <i className={e.type === "refunded" || e.type.includes("fail") || e.type === "late_payment" ? "!bg-[#e5484d]" : e.type === "paid" || e.type === "delivered" ? "!bg-[#16a36a]" : ""} />
                     <div>
                       <div className="text-sm text-[#1c1d22]">{label(orderEventType, e.type, lang)}</div>
-                      {e.message && <div className="text-xs text-[#6b6e78]">{e.message}</div>}
+                      {e.message && <div className="text-xs text-[#6b6e78]">{eventDetail(e.message, lang)}</div>}
                       <div className="text-[11px] text-[#8a8d96]">{formatDate(e.createdAt, lang, true)} · {e.type}{e.actorRole ? ` · ${e.actorRole}` : ""}{actorEmail ? ` (${actorEmail})` : ""}</div>
                     </div>
                   </div>
@@ -308,7 +308,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
                 [t("Source", "소스"), o.source === "admin_grant" ? <Badge key="g" tone="violet">{t("Manual grant", "수동 지급")}</Badge> : o.source ?? "—"],
                 [t("Medium", "매체"), o.medium ?? "—"],
                 [t("Campaign", "캠페인"), o.campaign ?? "—"],
-                [t("Deep link", "딥링크"), link ? <Link key="l" href={`/admin/links?q=${encodeURIComponent(link.code)}`} className="text-[#2f4ac2] hover:underline">{link.name} ({link.code})</Link> : "—"],
+                [t("Sales link", "판매 링크"), link ? <Link key="l" href={`/admin/links?q=${encodeURIComponent(link.code)}`} className="text-[#2f4ac2] hover:underline">{link.name} ({link.code})</Link> : "—"],
               ]}
             />
           </Panel>

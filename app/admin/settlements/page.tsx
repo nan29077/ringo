@@ -16,7 +16,7 @@ import { StatusBadge } from "@/components/console/status-badge";
 import { ActionButton, ActionForm } from "@/components/common/action-form";
 import { cancelPayoutBatch, createPayoutBatch, markPayoutPaid } from "./actions";
 
-export const metadata = { title: "Settlements" };
+export const metadata = { title: "Seller payouts" };
 
 export default async function AdminSettlements({ searchParams }: { searchParams: Promise<SP> }) {
   await requireAdmin();
@@ -43,7 +43,7 @@ export default async function AdminSettlements({ searchParams }: { searchParams:
 
   return (
     <>
-      <PageHeader title={t("Settlements", "정산 관리")} description={t(`Create payout batches from eligible orders (paid ${settings.commerce.refundWindowDays}+ days ago, delivered, no open refund request), transfer the money, then record the transfer reference.`, `정산 가능한 주문(결제 후 ${settings.commerce.refundWindowDays}일 경과·납품 완료·환불 요청 없음)으로 정산서를 만들고, 송금 후 송금 참조번호를 기록하세요.`)} />
+      <PageHeader title={t("Seller payouts", "판매자 정산")} description={t(`Create payout batches from eligible orders (paid ${settings.commerce.refundWindowDays}+ days ago, delivered, no open refund request), transfer the money, then record the transfer reference.`, `정산 가능한 주문(결제 후 ${settings.commerce.refundWindowDays}일 경과·납품 완료·환불 요청 없음)으로 정산서를 만들고, 송금 후 송금 참조번호를 기록하세요.`)} />
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t("Available now", "지금 정산 가능")} value={m(sum("availableCents"))} hint={t(`${overview.rows.filter((r) => r.availableN).length} sellers`, `판매자 ${overview.rows.filter((r) => r.availableN).length}명`)} tone="good" />
         <StatCard label={t("Holding", "정산 보류")} value={m(sum("holdingCents"))} hint={t("Refund window, production or refund request", "환불 기간·제작 중·환불 요청")} tone="warn" />
@@ -68,17 +68,20 @@ export default async function AdminSettlements({ searchParams }: { searchParams:
                 <td className="text-xs">{noAccount ? <Badge tone="red">{t("Not registered", "미등록")}</Badge> : <span>{x.payoutMethod?.toUpperCase()} · {x.payoutAccountName}</span>}</td>
                 <td className="whitespace-nowrap text-xs">{formatDate(r.lastPaidAt, lang)}{r.pendingSettlements > 0 && <div><Badge tone="amber">{t(`${r.pendingSettlements} awaiting transfer`, `지급 대기 ${r.pendingSettlements}건`)}</Badge></div>}</td>
                 <td>
-                  {r.availableN > 0 && r.availableCents > 0 ? (
+                  {r.availableN > 0 && r.availableCents > 0 && !belowMin ? (
                     <details>
                       <summary className="rc-btn rc-btn-primary rc-btn-sm cursor-pointer list-none">{t("Create batch", "정산서 생성")}</summary>
                       <ActionForm action={createPayoutBatch} className="mt-2 grid w-64 gap-2" confirm={t(`Create a payout batch for ${x.displayName}?`, `${x.displayName}의 정산서를 생성할까요?`)}>
                         <input type="hidden" name="sellerId" value={x.id} />
                         <label className="grid gap-1 text-xs text-[#6b6e78]">{t("Cut-off date (optional, inclusive)", "기준일 (선택, 해당일 포함)")}<input type="date" name="until" max={today} className="rc-date w-full" /></label>
                         <input name="memo" maxLength={500} className="rc-input" placeholder={t("Memo (optional)", "메모 (선택)")} />
-                        {(noAccount || belowMin) && <p className="text-[11px] text-[#a45c00]">{noAccount ? t("No payout account registered.", "정산 계좌가 없습니다.") : t(`Below the minimum payout (${m(settings.commerce.minPayoutCents)}).`, `최소 지급액(${m(settings.commerce.minPayoutCents)}) 미만입니다.`)}</p>}
+                        {noAccount && <p className="text-[11px] text-[#a45c00]">{t("No payout account registered.", "정산 계좌가 없습니다.")}</p>}
                         <button className="rc-btn rc-btn-primary rc-btn-sm justify-self-end">{t("Create", "생성")}</button>
                       </ActionForm>
                     </details>
+                  ) : r.availableN > 0 && r.availableCents > 0 ? (
+                    // Creating the batch would be refused; the balance rolls over until it reaches the minimum.
+                    <span className="text-xs text-[#a45c00]">{t(`Below the minimum payout (${m(settings.commerce.minPayoutCents)})`, `최소 지급액(${m(settings.commerce.minPayoutCents)}) 미만`)}</span>
                   ) : r.availableN > 0 ? (
                     // Eligible orders exist but refund deductions swallow them, so a batch would only fail.
                     <span className="text-xs text-[#b42318]">{t("Refund deductions exceed the payout", "환불 차감액이 정산 금액보다 큼")}</span>

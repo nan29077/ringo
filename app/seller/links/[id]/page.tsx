@@ -10,7 +10,7 @@ import { linkState, linkStats } from "@/lib/server/links";
 import { isUuid, toLocalInput } from "@/lib/server/seller-center";
 import { formatDate, formatMoney } from "@/lib/i18n";
 import { orderStatus } from "@/lib/status";
-import { PageHeader, Panel, StatCard, Badge, DataTable, EmptyState } from "@/components/console/ui";
+import { PageHeader, Panel, StatCard, Badge, DataTable, EmptyState, Notice } from "@/components/console/ui";
 import { StatusBadge } from "@/components/console/status-badge";
 import { ActionButton } from "@/components/common/action-form";
 import { CopyButton } from "@/components/console/copy-button";
@@ -19,7 +19,7 @@ import { linkFormOptions } from "../load";
 import { sellerToggleLink } from "../actions";
 import NextLink from "next/link";
 
-export const metadata = { title: "Deep link" };
+export const metadata = { title: "Sales link" };
 
 export default async function SellerLinkDetail({ params }: { params: Promise<{ id: string }> }) {
   const viewer = await requireSeller();
@@ -38,6 +38,9 @@ export default async function SellerLinkDetail({ params }: { params: Promise<{ i
     db.select({ n: sql<number>`count(*)::int` }).from(s.linkClicks).where(and(eq(s.linkClicks.linkId, link.id), sql`${s.linkClicks.createdAt} > now() - interval '7 days'`)),
   ]);
   const stat = stats.get(link.id) ?? { orders: 0, cents: 0 };
+  // The link itself may be active while its product is paused or hidden; visitors then land on "not available".
+  const [product] = await db.select({ status: s.products.status, visible: s.products.visible }).from(s.products).where(eq(s.products.id, link.productId));
+  const productOff = !product || product.status !== "published" || !product.visible;
   const st = linkState(link);
   const tone = { active: "green", paused: "gray", expired: "amber" }[st];
   const label = { active: t("Active", "활성"), paused: t("Paused", "일시중지"), expired: t("Expired", "만료") }[st];
@@ -46,9 +49,10 @@ export default async function SellerLinkDetail({ params }: { params: Promise<{ i
     <>
       <PageHeader
         title={link.name}
-        crumbs={[{ href: "/seller/links", label: t("Deep links", "딥링크") }, { label: link.name }]}
+        crumbs={[{ href: "/seller/links", label: t("Sales links", "판매 링크") }, { label: link.name }]}
         actions={<><Badge tone={tone}>{label}</Badge><ActionButton action={sellerToggleLink.bind(null, link.id)}>{link.status === "active" ? t("Pause link", "링크 중지") : t("Resume link", "링크 재개")}</ActionButton></>}
       />
+      {productOff && <div className="mb-4"><Notice tone="warn">{t("The product for this link is not on sale right now, so visitors see a \"not available\" message. Resume the product to use this link.", "이 링크의 상품이 현재 판매중이 아니어서, 링크로 들어온 방문자에게는 \"구매할 수 없음\" 안내가 표시됩니다. 상품 판매를 재개해야 링크를 쓸 수 있습니다.")}</Notice></div>}
       <Panel className="mb-4" bodyClass="flex flex-wrap items-center gap-3 p-4">
         <code className="min-w-0 flex-1 truncate rounded-lg bg-[#f3f4f7] px-3 py-2 text-sm">{url}</code>
         <CopyButton value={url} label={t("Copy link", "링크 복사")} />

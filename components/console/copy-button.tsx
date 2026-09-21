@@ -4,7 +4,7 @@ import { Check, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useLang } from "@/components/common/lang-provider";
 
-/** Copies a value (e.g. a deep link URL) to the clipboard. */
+/** Copies a value (e.g. a sales link URL) to the clipboard. */
 export function CopyButton({ value, label, className = "" }: { value: string; label?: string; className?: string }) {
   const { t } = useLang();
   const [done, setDone] = useState(false);

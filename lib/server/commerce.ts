@@ -1,4 +1,5 @@
 import "server-only";
+import { mailOrigin } from "./request";
 import { and, eq, gte, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import * as s from "@/db/schema";
 import type { DB, Tx } from "./db";
@@ -283,7 +284,7 @@ async function notifyPaid(db: DB, order: Order) {
     .from(s.sellers)
     .innerJoin(s.users, eq(s.users.id, s.sellers.userId))
     .where(eq(s.sellers.id, order.sellerId));
-  const origin = process.env.APP_URL || "";
+  const origin = await mailOrigin();
   await notify(db, order.buyerEmail, "order_paid_buyer", await recipientLang(db, { userId: order.buyerId }), {
     name: order.buyerName,
     orderNo: order.orderNo,
@@ -379,7 +380,7 @@ export async function deliverOrder(db: DB, viewer: Viewer, orderId: string, note
     orderNo: order.orderNo,
     product: order.productTitle,
     note: note.trim(),
-    orderUrl: `${process.env.APP_URL || ""}/account/orders/${order.id}`,
+    orderUrl: `${await mailOrigin()}/account/orders/${order.id}`,
   });
 }
 
@@ -568,6 +569,9 @@ export async function createSettlement(db: DB, viewer: Viewer, sellerId: string,
   const adj = (f: (a: (typeof adjustments)[number]) => number) => adjustments.reduce((a, x) => a + f(x), 0);
   const netCents = sum((o) => o.sellerNetCents) + adj((a) => a.netCents);
   if (netCents <= 0) throw new CommerceError("adjustments_exceed_payout");
+  // The minimum is a promise shown to sellers on their payout page; small balances roll over to the next batch.
+  const { commerce } = await getSettings(db);
+  if (commerce.minPayoutCents > 0 && netCents < commerce.minPayoutCents) throw new CommerceError("below_min_payout");
   const periodStart = new Date(Math.min(...orders.map((o) => o.paidAt!.getTime())));
   const adjustmentNote = adjustments.length ? `[deducted] ${adjustments.length} refund adjustment(s): ${formatMoney(adj((a) => a.netCents), currency)}` : "";
   return db.transaction(async (tx) => {

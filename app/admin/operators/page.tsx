@@ -12,7 +12,7 @@ import { StatusBadge } from "@/components/console/status-badge";
 import { ActionButton, ActionForm } from "@/components/common/action-form";
 import { createOperator, demoteOperator, promoteOperator } from "./actions";
 
-export const metadata = { title: "Operators" };
+export const metadata = { title: "Admin staff" };
 
 export default async function AdminOperators() {
   const viewer = await requireAdmin();
@@ -23,14 +23,14 @@ export default async function AdminOperators() {
 
   return (
     <>
-      <PageHeader title={t("Operators", "운영자 관리")} description={t("People with super-admin access to this console.", "이 관리자 콘솔에 접근할 수 있는 최고 관리자 계정입니다.")} />
+      <PageHeader title={t("Admin staff", "관리자 계정")} description={t("People with super-admin access to this console.", "이 관리자 콘솔에 접근할 수 있는 최고 관리자 계정입니다.")} />
       <div className="mb-4">
         <Notice tone="warn">
-          <span className="inline-flex items-start gap-2"><ShieldAlert className="mt-0.5 size-4 shrink-0" />{t("Operators have full access: orders, refunds, payouts, member data and settings. Grant access only to trusted staff, remove it as soon as it is no longer needed, and review the audit log regularly.", "운영자는 주문·환불·정산·회원 정보·설정 등 모든 기능에 접근할 수 있습니다. 신뢰할 수 있는 담당자에게만 부여하고, 필요가 없어지면 즉시 해제하며, 관리 작업 로그를 주기적으로 확인하세요.")}</span>
+          <span className="inline-flex items-start gap-2"><ShieldAlert className="mt-0.5 size-4 shrink-0" />{t("Operators have full access: orders, refunds, payouts, member data and settings. Grant access only to trusted staff, remove it as soon as it is no longer needed, and review the audit log regularly.", "운영자는 주문·환불·정산·회원 정보·설정 등 모든 기능에 접근할 수 있습니다. 신뢰할 수 있는 담당자에게만 부여하고, 필요가 없어지면 즉시 해제하며, 관리자 작업 기록를 주기적으로 확인하세요.")}</span>
         </Notice>
       </div>
       <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
-        <Panel title={<>{t("Operators", "운영자")} <span className="ml-1 text-[#8a8d96]">{admins.length}</span></>} bodyClass="p-0" actions={<Link href="/admin/logs" className="rc-btn rc-btn-outline rc-btn-sm">{t("Audit log", "관리 작업 로그")}</Link>}>
+        <Panel title={<>{t("Operators", "운영자")} <span className="ml-1 text-[#8a8d96]">{admins.length}</span></>} bodyClass="p-0" actions={<Link href="/admin/logs" className="rc-btn rc-btn-outline rc-btn-sm">{t("Admin activity", "관리자 작업 기록")}</Link>}>
           <DataTable head={[t("Name", "이름"), t("Status", "상태"), t("Last login", "최근 로그인"), t("Created", "등록일"), ""]} empty={<EmptyState title={t("No operators", "운영자가 없습니다")} />}>
             {admins.map((a) => (
               <tr key={a.id}>

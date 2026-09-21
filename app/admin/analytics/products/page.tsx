@@ -13,7 +13,7 @@ import { formatDate, formatMoney } from "@/lib/i18n";
 import { PageHeader, Panel, DataTable, EmptyState, StatCard } from "@/components/console/ui";
 import { AnalyticsNav, ShareBar } from "../range-tabs";
 
-export const metadata = { title: "Product analytics" };
+export const metadata = { title: "Product report" };
 
 export default async function AdminProductAnalytics({ searchParams }: { searchParams: Promise<SP> }) {
   await requireAdmin();
@@ -79,7 +79,7 @@ export default async function AdminProductAnalytics({ searchParams }: { searchPa
 
   return (
     <>
-      <PageHeader title={t("Product analytics", "상품 통계")} description={t("Best sellers for the period, deep-link conversion and products that stopped selling.", "기간 내 잘 팔린 상품, 딥링크 전환, 판매가 멈춘 상품을 확인합니다.")} />
+      <PageHeader title={t("Product report", "상품 통계")} description={t("Best sellers for the period, sales-link conversion and products that stopped selling.", "기간 내 잘 팔린 상품, 판매 링크 전환, 판매가 멈춘 상품을 확인합니다.")} />
       <AnalyticsNav path="/admin/analytics/products" days={days} t={t} extra={`&sort=${sort}&dead=${deadDays}`} />
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t("Products on sale", "판매중 상품")} value={totals.published} />

@@ -13,7 +13,7 @@ import { isAdjustmentSettlement } from "@/lib/server/commerce";
 import { Pagination } from "@/components/console/filters";
 import { StatusBadge } from "@/components/console/status-badge";
 
-export const metadata = { title: "Settlements" };
+export const metadata = { title: "Payouts" };
 
 export default async function SellerSettlements({ searchParams }: { searchParams: Promise<SP> }) {
   const viewer = await requireSeller();
@@ -27,6 +27,8 @@ export default async function SellerSettlements({ searchParams }: { searchParams
     db.select().from(s.settlements).where(cond).orderBy(desc(s.settlements.createdAt)).limit(size).offset(offset),
     db.select({ total: count() }).from(s.settlements).where(cond),
   ]);
+  // A file download, not a page: a plain anchor keeps the router from trying to render it.
+  const exportHref = "/seller/settlements/export";
   const cur = balance.currency;
   const m = (c: number, currency = cur) => formatMoney(c, currency, lang);
   const payoutMissing = !viewer.seller.payoutMethod || !viewer.seller.payoutAccountNumber;
@@ -38,7 +40,7 @@ export default async function SellerSettlements({ searchParams }: { searchParams
 
   return (
     <>
-      <PageHeader title={t("Settlements", "정산")} description={t(`Orders become payable ${balance.refundWindowDays} days after payment, once delivered and without an open refund request.`, `결제 후 ${balance.refundWindowDays}일이 지나고, 납품이 완료되었으며 환불 요청이 없는 주문이 정산 대상이 됩니다.`)} />
+      <PageHeader title={t("Payouts", "정산 내역")} description={t(`Orders become payable ${balance.refundWindowDays} days after payment, once delivered and without an open refund request.`, `결제 후 ${balance.refundWindowDays}일이 지나고, 납품이 완료되었으며 환불 요청이 없는 주문이 정산 대상이 됩니다.`)} actions={total > 0 ? <a href={exportHref} download className="rc-btn rc-btn-outline">{t("Download CSV", "CSV 다운로드")}</a> : undefined} />
       {payoutMissing && (
         <div className="mb-4"><Notice tone="warn">{t("No payout account registered. Payouts cannot be sent until you add one.", "정산 계좌가 등록되지 않아 지급할 수 없습니다.")} <Link href="/seller/settings/payout" className="font-semibold underline">{t("Register payout account", "정산 계좌 등록")}</Link></Notice></div>
       )}
@@ -49,7 +51,7 @@ export default async function SellerSettlements({ searchParams }: { searchParams
         <StatCard label={t("Paid out total", "누적 지급액")} value={m(balance.paidOut.cents)} hint={t(`${balance.paidOut.n} payouts`, `지급 ${balance.paidOut.n}건`)} tone="info" />
       </div>
 
-      <Panel className="mt-4" title={<>{t("Settlement history", "정산 내역")} <span className="ml-1 text-[#8a8d96]">{total}</span></>} bodyClass="p-0">
+      <Panel className="mt-4" title={<>{t("Settlement history", "정산서 목록")} <span className="ml-1 text-[#8a8d96]">{total}</span></>} bodyClass="p-0">
         <DataTable
           head={[t("Period", "정산 기간"), t("Orders", "주문 수"), t("Gross", "판매액"), t("Commission", "수수료"), t("Net payout", "지급액"), t("Status", "상태"), t("Reference", "송금 참조"), t("Paid", "지급일"), ""]}
           empty={<EmptyState title={t("No settlements yet", "정산 내역이 없습니다")} description={t("The marketplace team creates settlements from eligible orders.", "운영팀이 정산 가능한 주문으로 정산서를 생성합니다.")} />}

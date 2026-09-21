@@ -34,47 +34,47 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { id: "dashboard", en: "Dashboard", ko: "대시보드", icon: "LayoutDashboard", href: "/admin" },
     { id: "products", en: "Products", ko: "상품 관리", icon: "Package", badge: pendingProducts + contentChanges, items: [
       { href: "/admin/products", en: "Product list", ko: "상품 목록", badge: contentChanges },
-      { href: "/admin/products/review", en: "Review queue", ko: "상품 심사", badge: pendingProducts },
-      { href: "/admin/categories", en: "Categories", ko: "분류 관리" },
-      { href: "/admin/reviews", en: "Buyer reviews", ko: "구매평 관리" },
+      { href: "/admin/products/review", en: "Products to review", ko: "승인 대기 상품", badge: pendingProducts },
+      { href: "/admin/categories", en: "Categories", ko: "카테고리" },
+      { href: "/admin/reviews", en: "Buyer reviews", ko: "구매 후기" },
     ] },
-    { id: "orders", en: "Orders", ko: "주문 관리", icon: "ShoppingCart", badge: refundRequests, items: [
+    { id: "orders", en: "Orders", ko: "주문 관리", icon: "ShoppingCart", badge: refundRequests + pendingService, items: [
       { href: "/admin/orders", en: "All orders", ko: "전체 주문" },
-      { href: "/admin/orders/fulfillment", en: "Service production", ko: "제작 주문 관리", badge: pendingService },
+      { href: "/admin/orders/fulfillment", en: "Custom orders to make", ko: "제작 요청 주문", badge: pendingService },
       { href: "/admin/orders/refunds", en: "Refund requests", ko: "환불 요청", badge: refundRequests },
-      { href: "/admin/payments", en: "Payments", ko: "결제 내역" },
+      { href: "/admin/payments", en: "Payment history", ko: "결제 내역" },
     ] },
     { id: "members", en: "Members", ko: "회원 관리", icon: "Users", items: [
       { href: "/admin/members", en: "Member list", ko: "회원 목록" },
-      { href: "/admin/operators", en: "Operators", ko: "운영자 관리" },
+      { href: "/admin/operators", en: "Admin staff", ko: "관리자 계정" },
     ] },
     { id: "sellers", en: "Sellers", ko: "판매자 관리", icon: "Store", badge: pendingSellers, items: [
-      { href: "/admin/sellers/applications", en: "Applications", ko: "입점 신청", badge: pendingSellers },
+      { href: "/admin/sellers/applications", en: "Seller applications", ko: "입점 신청", badge: pendingSellers },
       { href: "/admin/sellers", en: "Seller list", ko: "판매자 목록" },
-      { href: "/admin/settlements", en: "Settlements", ko: "정산 관리" },
+      { href: "/admin/settlements", en: "Seller payouts", ko: "판매자 정산" },
     ] },
     { id: "marketing", en: "Marketing", ko: "마케팅", icon: "Megaphone", items: [
       { href: "/admin/coupons", en: "Coupons", ko: "쿠폰 관리" },
-      { href: "/admin/links", en: "Deep links", ko: "딥링크 현황" },
+      { href: "/admin/links", en: "Sales links", ko: "판매 링크" },
       { href: "/admin/banners", en: "Banners", ko: "배너 관리" },
     ] },
-    { id: "support", en: "Customer care", ko: "고객 지원", icon: "MessageSquare", badge: openInquiries, items: [
+    { id: "support", en: "Customer support", ko: "고객 지원", icon: "MessageSquare", badge: openInquiries, items: [
       { href: "/admin/inquiries", en: "Inquiries", ko: "1:1 문의", badge: openInquiries },
       { href: "/admin/notices", en: "Notices", ko: "공지사항" },
-      { href: "/admin/messages", en: "Email log", ko: "메일 발송 내역" },
+      { href: "/admin/messages", en: "Sent emails", ko: "보낸 메일" },
     ] },
-    { id: "analytics", en: "Analytics", ko: "통계", icon: "ChartColumn", items: [
-      { href: "/admin/analytics", en: "Sales", ko: "매출 통계" },
-      { href: "/admin/analytics/products", en: "Products", ko: "상품 통계" },
-      { href: "/admin/analytics/traffic", en: "Traffic sources", ko: "유입 경로" },
+    { id: "analytics", en: "Reports", ko: "통계", icon: "ChartColumn", items: [
+      { href: "/admin/analytics", en: "Sales report", ko: "매출 통계" },
+      { href: "/admin/analytics/products", en: "Product report", ko: "상품 통계" },
+      { href: "/admin/analytics/traffic", en: "Where buyers come from", ko: "방문 경로" },
     ] },
     { id: "settings", en: "Settings", ko: "설정", icon: "Settings", items: [
-      { href: "/admin/settings", en: "Preferences", ko: "환경 설정" },
-      { href: "/admin/settings/payments", en: "Payment providers", ko: "결제 연동" },
+      { href: "/admin/settings", en: "Basic settings", ko: "기본 설정" },
+      { href: "/admin/settings/payments", en: "Payment setup", ko: "결제 서비스 설정" },
     ] },
-    { id: "logs", en: "Logs", ko: "로그", icon: "ScrollText", items: [
-      { href: "/admin/logs", en: "Audit log", ko: "관리 작업 로그" },
-      { href: "/admin/logs/errors", en: "Error log", ko: "에러 로그" },
+    { id: "logs", en: "Records", ko: "기록", icon: "ScrollText", items: [
+      { href: "/admin/logs", en: "Admin activity", ko: "관리자 작업 기록" },
+      { href: "/admin/logs/errors", en: "System errors", ko: "오류 기록" },
     ] },
   ];
 

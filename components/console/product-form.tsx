@@ -212,7 +212,7 @@ export function ProductForm({ action, categories, product, assets = [], sellers,
 
       <Section title={t("Address & SEO", "주소 · 검색 노출")}>
         <div className="grid gap-4 md:grid-cols-2">
-          <F label={t("URL slug", "상품 주소")} hint={product ? t(`Current: /p/${product.slug} · an address already in use is rejected.`, `현재: /p/${product.slug} · 이미 사용 중인 주소는 저장되지 않습니다.`) : t("Leave blank to generate from the English title. An address already in use is rejected.", "비워두면 영문 상품명으로 자동 생성됩니다. 이미 사용 중인 주소는 저장되지 않습니다.")}>
+          <F label={t("URL slug", "상품 주소")} hint={product ? t(`Current: /p/${product.slug} · an address already in use is rejected.${product.publishedAt ? " Changing it breaks the old address wherever it was shared (sales links keep working)." : ""}`, `현재: /p/${product.slug} · 이미 사용 중인 주소는 저장되지 않습니다.${product.publishedAt ? " 바꾸면 이미 공유된 기존 주소로는 들어올 수 없습니다 (판매 링크는 계속 작동)." : ""}`) : t("Leave blank to generate from the English title. An address already in use is rejected.", "비워두면 영문 상품명으로 자동 생성됩니다. 이미 사용 중인 주소는 저장되지 않습니다.")}>
             <input name="slug" className="rc-input" maxLength={80} defaultValue={product?.slug ?? ""} placeholder="my-product" />
           </F>
           <F label={t("SEO title", "검색 제목")} hint={t("Defaults to the product title.", "비워두면 상품명을 사용합니다.")}>

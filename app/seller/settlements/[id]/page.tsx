@@ -31,7 +31,7 @@ export default async function SellerSettlementDetail({ params }: { params: Promi
   const title = `${formatDate(row.periodStart, lang)} ~ ${formatDate(row.periodEnd, lang)}`;
   return (
     <>
-      <PageHeader title={t("Settlement details", "정산 상세")} description={title} crumbs={[{ href: "/seller/settlements", label: t("Settlements", "정산") }, { label: title }]} actions={<StatusBadge map={settlementStatus} value={row.status} lang={lang} />} />
+      <PageHeader title={t("Payout details", "정산 상세")} description={title} crumbs={[{ href: "/seller/settlements", label: t("Payouts", "정산 내역") }, { label: title }]} actions={<StatusBadge map={settlementStatus} value={row.status} lang={lang} />} />
       {adjustment && <div className="mb-4"><Notice tone="warn">{t("Refund deduction: an order that was already paid out was refunded. This amount is deducted from your next payout.", "환불 차감 건입니다. 이미 지급된 주문이 환불되어 이 금액이 다음 정산에서 차감됩니다.")}</Notice></div>}
       {deductions.length > 0 && <div className="mb-4"><Notice>{t(`This payout includes ${m(deductions.reduce((a, d) => a + d.netCents, 0))} of refund deductions from earlier payouts.`, `이 정산서에는 이전 지급분의 환불 차감 ${m(deductions.reduce((a, d) => a + d.netCents, 0))}이 반영되어 있습니다.`)}</Notice></div>}
       <div className="grid gap-3 sm:grid-cols-3">

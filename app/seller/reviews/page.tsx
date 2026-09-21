@@ -11,7 +11,7 @@ import { formatDate } from "@/lib/i18n";
 import { PageHeader, Panel, DataTable, EmptyState, StatCard, Badge } from "@/components/console/ui";
 import { FilterBar, Pagination } from "@/components/console/filters";
 
-export const metadata = { title: "Reviews" };
+export const metadata = { title: "Buyer reviews" };
 
 function Stars({ n }: { n: number }) {
   return (
@@ -55,7 +55,7 @@ export default async function SellerReviews({ searchParams }: { searchParams: Pr
   ]);
   return (
     <>
-      <PageHeader title={t("Reviews", "구매평")} description={t("Buyer reviews on your products. Contact support if a review violates the guidelines.", "내 상품에 작성된 구매평입니다. 운영 정책에 어긋나는 구매평은 고객센터로 신고하세요.")} />
+      <PageHeader title={t("Buyer reviews", "구매 후기")} description={t("Buyer reviews on your products. Contact support if a review violates the guidelines.", "내 상품에 작성된 구매평입니다. 운영 정책에 어긋나는 구매평은 고객센터로 신고하세요.")} />
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t("Average rating", "평균 평점")} value={summary.n ? summary.avg.toFixed(1) : "—"} hint={t(`${summary.n} visible reviews`, `공개 구매평 ${summary.n}개`)} />
         <StatCard label={t("Last 30 days", "최근 30일")} value={summary.recent} />

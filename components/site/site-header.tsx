@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight, Heart, Library, Menu, User } from "lucide-react";
 import { getViewer } from "@/lib/server/auth";
-import { getT } from "@/lib/server/i18n-server";
+import { getT, siteBusinessInfo, siteName } from "@/lib/server/i18n-server";
 import { LanguageToggle } from "@/components/common/language-toggle";
 import { MobileMenu } from "./mobile-menu";
 
@@ -63,14 +63,17 @@ export async function SiteHeader() {
 
 export async function SiteFooter() {
   const { t } = await getT();
+  const [name, business] = await Promise.all([siteName(), siteBusinessInfo()]);
   return (
     <footer className="site-footer shell">
       <div>
         <Link href="/" className="brand"><img src="/favicon.svg" alt="" />ringo</Link>
         <p>{t("Digital goods. Human creativity.", "디지털 콘텐츠. 사람의 창의성.")}</p>
+        {/* Business details from Preferences — commonly required to be shown on every page of a shop. */}
+        {business && <p className="site-footer-business">{business}</p>}
       </div>
       <div className="flex-wrap">
-        <span>© {new Date().getFullYear()} Ringo</span>
+        <span>© {new Date().getFullYear()} {name}</span>
         <Link href="/notices">{t("Notices", "공지사항")}</Link>
         <Link href="/sell">{t("Become a seller", "판매자 입점")}</Link>
         <Link href="/account/inquiries">{t("Help & support", "고객센터")}</Link>

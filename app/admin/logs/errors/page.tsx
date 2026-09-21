@@ -9,7 +9,7 @@ import { formatDate } from "@/lib/i18n";
 import { PageHeader, Panel, DataTable, EmptyState, Badge, StatCard } from "@/components/console/ui";
 import { FilterBar, Pagination } from "@/components/console/filters";
 
-export const metadata = { title: "Error log" };
+export const metadata = { title: "System errors" };
 
 export default async function AdminErrorLog({ searchParams }: { searchParams: Promise<SP> }) {
   await requireAdmin();
@@ -34,7 +34,7 @@ export default async function AdminErrorLog({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <PageHeader title={t("Error log", "에러 로그")} description={t("Server-side failures: payment gateway calls and webhooks, email delivery, unexpected action errors.", "서버에서 발생한 오류입니다: 결제사(PG) API·웹훅, 메일 발송, 처리 중 예기치 못한 오류.")} actions={<Link href="/admin/logs" className="rc-btn rc-btn-outline">{t("Audit log", "관리 작업 로그")}</Link>} />
+      <PageHeader title={t("System errors", "오류 기록")} description={t("Server-side failures: payment gateway calls and webhooks, email delivery, unexpected action errors.", "서버에서 발생한 오류입니다: 결제사(PG) API·웹훅, 메일 발송, 처리 중 예기치 못한 오류.")} actions={<Link href="/admin/logs" className="rc-btn rc-btn-outline">{t("Admin activity", "관리자 작업 기록")}</Link>} />
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t("Errors · 24 hours", "최근 24시간 에러")} value={day} tone={day ? "warn" : "good"} />
         {sources.slice(0, 3).map((x) => (

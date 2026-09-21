@@ -1,4 +1,5 @@
 import "server-only";
+import { mailOrigin } from "./request";
 import { zonedDateKey } from "../time";
 import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
@@ -10,11 +11,21 @@ import { getSettings } from "./settings";
 
 import { notify } from "./notify";
 
+function isWebUrl(v: string) {
+  try {
+    const u = new URL(v);
+    return (u.protocol === "http:" || u.protocol === "https:") && /^[^.\s]+(\.[^.\s]+)+$/.test(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
 export const sellerProfileInput = z.object({
   displayName: z.string().trim().min(2).max(60),
   slug: z.string().trim().toLowerCase().min(3).max(40).regex(/^[a-z0-9-]+$/),
   bio: z.string().trim().max(1000).optional().transform((v) => v || null),
-  website: z.string().trim().max(200).optional().transform((v) => v || null),
+  // The storefront renders this as a link, so only a real http(s) address with a domain is kept.
+  website: z.string().trim().max(200).optional().refine((v) => !v || isWebUrl(v), "Invalid URL").transform((v) => v || null),
   avatarKey: z.string().max(300).optional().transform((v) => v || null),
 });
 
@@ -64,7 +75,7 @@ export async function reviewSeller(db: DB, viewer: Viewer, sellerId: string, dec
   if (decision === "reject" && !reason?.trim()) throw new CommerceError("reason_required");
   await db.update(s.sellers).set({ status: decision === "approve" ? "active" : "rejected", rejectReason: decision === "reject" ? reason!.trim() : null, reviewedBy: viewer.user.id, reviewedAt: new Date(), updatedAt: new Date() }).where(eq(s.sellers.id, sellerId));
   if (decision === "approve" && row.user.role === "buyer") await db.update(s.users).set({ role: "seller" }).where(eq(s.users.id, row.user.id));
-  const origin = process.env.APP_URL || "";
+  const origin = await mailOrigin();
   await notify(db, row.user.email, "seller_review", row.user.locale, {
     approved: decision === "approve",
     store: row.seller.displayName,

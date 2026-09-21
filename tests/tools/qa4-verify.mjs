@@ -215,7 +215,7 @@ try {
   for (const path of ['/admin', '/admin/products', '/admin/orders', '/admin/settlements']) {
     const res = await seller.request.get(`${BASE}${path}`, { headers: { RSC: '1' } });
     const t2 = await res.text();
-    if (res.status() === 200 && /전체 매출|플랫폼 수수료|정산 관리/.test(t2)) leaks.push(`${path} (${res.status()})`);
+    if (res.status() === 200 && /전체 매출|플랫폼 수수료|정산 관리|판매자 정산/.test(t2)) leaks.push(`${path} (${res.status()})`);
   }
   if (leaks.length) fail('F5-관리자권한', `판매자 세션이 관리자 데이터를 받음: ${leaks.join(', ')}`);
   else pass('F5-관리자권한', '판매자 세션으로는 관리자 페이지 데이터를 얻지 못함');

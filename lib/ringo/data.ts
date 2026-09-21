@@ -18,7 +18,7 @@ products.push(
 );
 export const categories = [{id:'all',en:'All content',ko:'전체 콘텐츠'},{id:'courses',en:'Courses',ko:'강의'},{id:'advertising',en:'Advertising',ko:'광고'},{id:'digital',en:'Digital content',ko:'디지털 콘텐츠'},{id:'collections',en:'Collections',ko:'기획전'},{id:'ebooks',en:'eBooks & guides',ko:'전자책 · 가이드'},{id:'design',en:'Design resources',ko:'디자인 리소스'},{id:'photo',en:'Photography',ko:'사진 · 프리셋'}];
 export const baseMenus = [
-{id:'overview',en:'Overview',ko:'대시보드'}, {id:'products',en:'Products',ko:'상품 관리'}, {id:'links',en:'Deep links',ko:'딥 링크 관리'}, {id:'orders',en:'Orders',ko:'주문 관리'}, {id:'customers',en:'Customers',ko:'구매자 관리'}, {id:'sellers',en:'Sellers',ko:'판매자 관리'}, {id:'payments',en:'Payments',ko:'결제 관리'}, {id:'settlements',en:'Settlements',ko:'정산 관리'}, {id:'coupons',en:'Coupons',ko:'쿠폰 관리'}, {id:'content',en:'Storefront',ko:'콘텐츠 관리'}, {id:'support',en:'Support',ko:'고객 문의'}, {id:'settings',en:'Settings',ko:'환경 설정'}
+{id:'overview',en:'Overview',ko:'대시보드'}, {id:'products',en:'Products',ko:'상품 관리'}, {id:'links',en:'Sales links',ko:'딥 링크 관리'}, {id:'orders',en:'Orders',ko:'주문 관리'}, {id:'customers',en:'Customers',ko:'구매자 관리'}, {id:'sellers',en:'Sellers',ko:'판매자 관리'}, {id:'payments',en:'Payments',ko:'결제 관리'}, {id:'settlements',en:'Settlements',ko:'정산 관리'}, {id:'coupons',en:'Coupons',ko:'쿠폰 관리'}, {id:'content',en:'Storefront',ko:'콘텐츠 관리'}, {id:'support',en:'Support',ko:'고객 문의'}, {id:'settings',en:'Settings',ko:'환경 설정'}
 ];
 export type Order={id:string;productId:string;amount:number;date:string;buyer:string;source:string;status:'paid'|'refunded';linkId?:string;campaign?:string;medium?:string;brief?:string;fulfillment?:'pending'|'completed';refundRequested?:boolean;deliveryNote?:string};
 export const initialOrders:Order[]=[{id:'RG-1048',productId:'p1',amount:24,date:'2026-09-15',buyer:'Alex Morgan',source:'instagram',status:'paid'},{id:'RG-1047',productId:'p2',amount:39,date:'2026-09-14',buyer:'Jamie Park',source:'direct',status:'paid'},{id:'RG-1046',productId:'p3',amount:19,date:'2026-09-14',buyer:'Taylor Lee',source:'newsletter',status:'paid'}];
@@ -34,6 +34,6 @@ export const menuGroups = [
 {en:'Promotions',ko:'프로모션 관리',items:[['coupons','Coupons','쿠폰 관리'],['coupon-create','Create coupon','쿠폰 생성']]},
 {en:'Banners & popups',ko:'배너 팝업 관리',items:[['banners','Banner list','배너 팝업 목록'],['banner-create','Add banner','배너 팝업 등록']]},
 {en:'Analytics',ko:'통계',items:[['sales','Sales','매출'],['analytics-products','Products · Items','상품 · 품목'],['analytics-categories','Products · Categories','상품 · 카테고리'],['deadstock','Products · Deadstock','상품 · 데드스탁'],['traffic','Traffic','트래픽 통계']]},
-{en:'Settings',ko:'설정',items:[['settings','Preferences','환경설정'],['stores','Multiple stores','멀티쇼핑몰'],['links','Deep links','딥링크']]},
+{en:'Settings',ko:'설정',items:[['settings','Preferences','환경설정'],['stores','Multiple stores','멀티쇼핑몰'],['links','Sales links','판매 링크']]},
 {en:'Activity',ko:'로그',items:[['logs','Log viewer','로그 뷰']]}
 ];

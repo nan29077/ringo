@@ -13,7 +13,7 @@ import { PageHeader, Panel, StatCard, DataTable, EmptyState } from "@/components
 import { SalesChart } from "@/components/console/sales-chart";
 import { AnalyticsNav, ShareBar } from "./range-tabs";
 
-export const metadata = { title: "Sales analytics" };
+export const metadata = { title: "Sales report" };
 
 export default async function AdminSalesAnalytics({ searchParams }: { searchParams: Promise<SP> }) {
   await requireAdmin();
@@ -54,7 +54,7 @@ export default async function AdminSalesAnalytics({ searchParams }: { searchPara
 
   return (
     <>
-      <PageHeader title={t("Sales analytics", "매출 통계")} description={t(`Paid orders by payment time (${TZ}). Refunded orders stay in gross sales; refunds are shown separately.`, `결제 완료 시점 기준 (${TZ}). 환불된 주문도 총 매출에 포함되며 환불액은 별도로 표시합니다.`)} />
+      <PageHeader title={t("Sales report", "매출 통계")} description={t(`Paid orders by payment time (${TZ}). Refunded orders stay in gross sales; refunds are shown separately.`, `결제 완료 시점 기준 (${TZ}). 환불된 주문도 총 매출에 포함되며 환불액은 별도로 표시합니다.`)} />
       <AnalyticsNav path="/admin/analytics" days={days} t={t} />
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t("Gross sales", "총 매출")} value={formatMoney(summary.gross, cur, lang)} hint={t(`${summary.orders} paid orders · avg ${formatMoney(aov, cur, lang)}`, `결제 ${summary.orders}건 · 객단가 ${formatMoney(aov, cur, lang)}`)} />

@@ -27,19 +27,19 @@ export default async function SellerLayout({ children }: { children: React.React
     ] },
     { id: "orders", en: "Orders", ko: "주문 관리", icon: "ShoppingCart", badge: c.pendingService + c.refundRequests, items: [
       { href: "/seller/orders", en: "All orders", ko: "전체 주문" },
-      { href: "/seller/orders/production", en: "Production queue", ko: "제작 대기열", badge: c.pendingService },
+      { href: "/seller/orders/production", en: "Orders to make", ko: "제작할 주문", badge: c.pendingService },
       { href: "/seller/orders/refunds", en: "Refund requests", ko: "환불 요청", badge: c.refundRequests },
     ] },
     { id: "marketing", en: "Marketing", ko: "마케팅", icon: "Megaphone", items: [
-      { href: "/seller/links", en: "Deep links", ko: "딥링크" },
+      { href: "/seller/links", en: "Sales links", ko: "판매 링크" },
       { href: "/seller/coupons", en: "Coupons", ko: "쿠폰" },
     ] },
-    { id: "settlements", en: "Settlements", ko: "정산", icon: "Wallet", href: "/seller/settlements" },
-    { id: "inquiries", en: "Customer inquiries", ko: "고객 문의", icon: "MessageSquare", href: "/seller/inquiries", badge: c.openInquiries },
-    { id: "reviews", en: "Reviews", ko: "구매평", icon: "Star", href: "/seller/reviews" },
+    { id: "settlements", en: "Payouts", ko: "정산 내역", icon: "Wallet", href: "/seller/settlements" },
+    { id: "inquiries", en: "Customer inquiries", ko: "고객 문의", icon: "MessageSquare", href: "/seller/inquiries", badge: c.unreadInquiries },
+    { id: "reviews", en: "Buyer reviews", ko: "구매 후기", icon: "Star", href: "/seller/reviews" },
     { id: "settings", en: "Store settings", ko: "스토어 설정", icon: "Settings", items: [
       { href: "/seller/settings", en: "Store profile", ko: "스토어 프로필" },
-      { href: "/seller/settings/payout", en: "Payout account", ko: "정산 계좌" },
+      { href: "/seller/settings/payout", en: "Bank account for payouts", ko: "정산 받을 계좌" },
     ] },
     { id: "notices", en: "Notices", ko: "공지사항", icon: "Bell", href: "/seller/notices" },
   ];

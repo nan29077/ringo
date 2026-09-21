@@ -13,7 +13,7 @@ import { PageHeader, Panel, DataTable, EmptyState, Badge, StatCard } from "@/com
 import { FilterBar, Pagination } from "@/components/console/filters";
 import { StatusBadge } from "@/components/console/status-badge";
 
-export const metadata = { title: "Payments" };
+export const metadata = { title: "Payment history" };
 
 const tabs = [
   ["attempts", "Payment attempts", "결제 시도"],
@@ -38,7 +38,7 @@ export default async function AdminPayments({ searchParams }: { searchParams: Pr
       ))}
     </nav>
   );
-  const header = <PageHeader title={t("Payments", "결제 내역")} description={t("Payment attempts, provider webhooks and refund records for reconciliation with your PG.", "결제 시도, 결제사 웹훅, 환불 기록을 PG 정산 내역과 대조하세요.")} />;
+  const header = <PageHeader title={t("Payment history", "결제 내역")} description={t("Payment attempts, provider webhooks and refund records for reconciliation with your PG.", "결제 시도, 결제사 웹훅, 환불 기록을 PG 정산 내역과 대조하세요.")} />;
 
   if (tab === "events") {
     const where: (SQL | undefined)[] = [periodWhere(s.paymentEvents.createdAt, sp)];

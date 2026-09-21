@@ -10,7 +10,7 @@ export function LinkForm({ t, lang, products, coupons, link, defaultProductId, e
   t: T;
   lang: Lang;
   products: { id: string; titleEn: string; titleKo: string }[];
-  coupons: { code: string; name: string }[];
+  coupons: { code: string; name: string; productId?: string | null; productKo?: string | null; productEn?: string | null }[];
   link?: Link;
   defaultProductId?: string;
   expiresValue: string;
@@ -36,7 +36,7 @@ export function LinkForm({ t, lang, products, coupons, link, defaultProductId, e
             </Field>
           ) : (
             <Field className="content-start" label={t("Custom code (optional)", "사용자 지정 코드 (선택)")} hint={t("Letters, numbers and hyphens. Leave blank for a random code.", "영문, 숫자, 하이픈. 비워두면 자동 생성됩니다.")}>
-              <div className="flex items-center gap-2"><span className="whitespace-nowrap text-xs text-[#8a8d96]">{origin}/l/</span><input name="code" className="rc-input" maxLength={40} pattern="[a-zA-Z0-9\-]*" placeholder="spring-sale" /></div>
+              <div className="flex items-center gap-2"><span className="whitespace-nowrap text-xs text-[#8a8d96]">{origin}/l/</span><input name="code" className="rc-input" minLength={3} maxLength={40} pattern="[a-zA-Z0-9\-]*" placeholder="spring-sale" /></div>
             </Field>
           )}
           <Field className="content-start" label={t("Destination", "이동 위치")}>
@@ -68,10 +68,10 @@ export function LinkForm({ t, lang, products, coupons, link, defaultProductId, e
               <option value="ko">한국어</option>
             </select>
           </Field>
-          <Field className="content-start" label={t("Auto-apply coupon", "자동 적용 쿠폰")} hint={t("Only your own coupons can be attached.", "내 스토어 쿠폰만 연결할 수 있습니다.")}>
+          <Field className="content-start" label={t("Auto-apply coupon", "자동 적용 쿠폰")} hint={t("Only your own active coupons can be attached. A product-only coupon works only with that product.", "사용 가능한 내 스토어 쿠폰만 연결할 수 있습니다. 특정 상품 전용 쿠폰은 그 상품 링크에만 쓸 수 있습니다.")}>
             <select name="couponCode" className="rc-select" defaultValue={link?.couponCode ?? ""}>
               <option value="">{t("None", "없음")}</option>
-              {coupons.map((c) => <option key={c.code} value={c.code}>{c.code} · {c.name}</option>)}
+              {coupons.map((c) => <option key={c.code} value={c.code}>{c.code} · {c.name}{c.productId ? ` (${t("only for", "전용")}: ${lang === "ko" ? c.productKo ?? c.productEn : c.productEn ?? c.productKo})` : ""}</option>)}
             </select>
           </Field>
           <Field className="content-start" label={t("Expires at", "만료 일시")} hint={t("Leave blank for no expiry.", "비워두면 만료되지 않습니다.")}>

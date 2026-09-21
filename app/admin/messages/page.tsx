@@ -9,7 +9,7 @@ import { formatDate } from "@/lib/i18n";
 import { PageHeader, Panel, DataTable, EmptyState, Badge, Notice, StatCard } from "@/components/console/ui";
 import { FilterBar, Pagination } from "@/components/console/filters";
 
-export const metadata = { title: "Email log" };
+export const metadata = { title: "Sent emails" };
 
 const mailTone = { sent: "green", logged: "gray", failed: "red" } as const;
 
@@ -42,7 +42,7 @@ export default async function AdminMessages({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <PageHeader title={t("Email log", "메일 발송 내역")} description={t("Every email Ringo tried to send: verification, password reset, order, review and inquiry notifications.", "링고가 보낸 모든 메일(인증, 비밀번호 재설정, 주문, 심사, 문의 알림) 기록입니다.")} />
+      <PageHeader title={t("Sent emails", "보낸 메일")} description={t("Every email Ringo tried to send: verification, password reset, order, review and inquiry notifications.", "링고가 보낸 모든 메일(인증, 비밀번호 재설정, 주문, 심사, 문의 알림) 기록입니다.")} />
       <div className="mb-4">
         {smtp ? (
           <Notice tone="success">{t(`SMTP is configured (${process.env.SMTP_HOST}). Emails are delivered and recorded here.`, `SMTP가 설정되어 있습니다 (${process.env.SMTP_HOST}). 메일이 실제로 발송되고 여기에 기록됩니다.`)}</Notice>

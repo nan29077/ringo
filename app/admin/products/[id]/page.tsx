@@ -96,7 +96,7 @@ export default async function AdminProductDetail({ params, searchParams }: { par
         crumbs={[{ href: "/admin/products", label: t("Products", "상품 관리") }, { label: title }]}
         actions={
           <>
-            {st === "pending_review" && <Link href="/admin/products/review" className="rc-btn rc-btn-outline">{t("Review queue", "심사 대기열")}</Link>}
+            {st === "pending_review" && <Link href="/admin/products/review" className="rc-btn rc-btn-outline">{t("Products to review", "승인 대기 상품")}</Link>}
             {st === "published" && <Link href={`/p/${product.slug}`} target="_blank" className="rc-btn rc-btn-outline"><ExternalLink />{t("View on store", "상품 페이지 보기")}</Link>}
           </>
         }
@@ -167,7 +167,7 @@ export default async function AdminProductDetail({ params, searchParams }: { par
       )}
 
       {tab === "history" && (
-        <Panel title={t("Change history", "변경 이력")} description={t("Audit log entries for this product (latest 200).", "이 상품에 대한 관리 작업 로그입니다 (최근 200건).")} bodyClass="p-0">
+        <Panel title={t("Change history", "변경 이력")} description={t("Audit log entries for this product (latest 200).", "이 상품에 대한 관리자 작업 기록입니다 (최근 200건).")} bodyClass="p-0">
           <DataTable head={[t("Date", "일시"), t("Action", "작업"), t("Actor", "작업자"), t("Details", "내용")]} empty={<EmptyState title={t("No recorded changes", "기록된 변경 이력이 없습니다")} />}>
             {history.map((h) => (
               <tr key={h.id}>
@@ -290,7 +290,7 @@ export default async function AdminProductDetail({ params, searchParams }: { par
                   ...(product.deliveryType === "service" ? [[t("Delivery time", "제작 기간"), t(`${product.deliveryDays ?? 7} days`, `${product.deliveryDays ?? 7}일`)] as [string, string]] : []),
                   ...(product.deliveryType === "course" ? [[t("Lessons", "강의 수"), String(product.lessons.length)] as [string, string]] : []),
                   [t("Sales count", "판매 수"), String(product.salesCount)],
-                  [t("Deep links", "딥링크"), <Link key="l" href={`/admin/links?q=${encodeURIComponent(product.titleEn)}`} className="text-[#2f4ac2] hover:underline">{counts.links}</Link>],
+                  [t("Sales links", "판매 링크"), <Link key="l" href={`/admin/links?q=${encodeURIComponent(product.titleEn)}`} className="text-[#2f4ac2] hover:underline">{counts.links}</Link>],
                   [t("Created", "등록일"), formatDate(product.createdAt, lang, true)],
                   [t("Submitted", "심사 요청일"), formatDate(product.submittedAt, lang, true)],
                   [t("Published", "판매 시작일"), formatDate(product.publishedAt, lang, true)],

@@ -12,7 +12,7 @@ import { PageHeader, Panel, DataTable, EmptyState } from "@/components/console/u
 import { FilterBar, Pagination } from "@/components/console/filters";
 import { StatusBadge } from "@/components/console/status-badge";
 
-export const metadata = { title: "Audit log" };
+export const metadata = { title: "Admin activity" };
 
 /** Admin pages for audit targets (when one exists). */
 const targetHref: Record<string, (id: string) => string> = {
@@ -54,7 +54,7 @@ export default async function AdminAuditLog({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <PageHeader title={t("Audit log", "관리 작업 로그")} description={t("Who changed what: every operator and seller action recorded by the server.", "누가 무엇을 변경했는지 서버가 기록한 운영자·판매자 작업 로그입니다.")} actions={<Link href="/admin/logs/errors" className="rc-btn rc-btn-outline">{t("Error log", "에러 로그")}</Link>} />
+      <PageHeader title={t("Admin activity", "관리자 작업 기록")} description={t("Who changed what: every operator and seller action recorded by the server.", "누가 무엇을 변경했는지 서버가 기록한 운영자·판매자 작업 로그입니다.")} actions={<Link href="/admin/logs/errors" className="rc-btn rc-btn-outline">{t("System errors", "오류 기록")}</Link>} />
       <div className="mb-3 flex flex-wrap items-center gap-1.5 text-xs">
         <span className="mr-1 text-[#6b6e78]">{t("Quick filter", "빠른 필터")}</span>
         {prefixes.map((p) => (

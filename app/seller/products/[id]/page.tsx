@@ -70,7 +70,7 @@ export default async function SellerProductDetail({ params, searchParams }: { pa
         actions={
           <>
             {st === "published" && <Link href={`/p/${product.slug}`} target="_blank" className="rc-btn rc-btn-outline"><ExternalLink />{t("View on store", "상품 페이지 보기")}</Link>}
-            {st === "published" && <Link href={`/seller/links/new?productId=${product.id}`} className="rc-btn rc-btn-outline"><Link2 />{t("Create deep link", "딥링크 만들기")}</Link>}
+            {st === "published" && <Link href={`/seller/links/new?productId=${product.id}`} className="rc-btn rc-btn-outline"><Link2 />{t("Create sales link", "판매 링크 만들기")}</Link>}
           </>
         }
       />
@@ -155,7 +155,7 @@ export default async function SellerProductDetail({ params, searchParams }: { pa
                     [t("Created", "등록일"), formatDate(product.createdAt, lang)],
                     [t("Submitted", "심사 요청일"), formatDate(product.submittedAt, lang)],
                     [t("First published", "최초 판매일"), formatDate(product.publishedAt, lang)],
-                    [t("Deep links", "딥링크"), <Link key="l" href="/seller/links" className="text-[#2f4ac2] hover:underline">{linkCount.n}</Link>],
+                    [t("Sales links", "판매 링크"), <Link key="l" href="/seller/links" className="text-[#2f4ac2] hover:underline">{linkCount.n}</Link>],
                   ]}
                 />
               </div>

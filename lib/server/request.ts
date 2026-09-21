@@ -36,6 +36,19 @@ export async function appOrigin() {
   return `${proto}://${host}`;
 }
 
+/**
+ * Origin for links inside emails. Without APP_URL the links used to be relative ("/seller/…"), which a
+ * mail client cannot open; this uses the request's host instead, like the password-reset mail does.
+ * Outside a request (seed scripts) there is no host to read, so it falls back to a relative link.
+ */
+export async function mailOrigin() {
+  try {
+    return await appOrigin();
+  } catch {
+    return (process.env.APP_URL || "").replace(/\/$/, "");
+  }
+}
+
 const buckets = new Map<string, { count: number; reset: number }>();
 /** Clears a counter after a successful attempt, so legitimate use never exhausts an abuse limit. */
 export function rateLimitReset(...keys: string[]) {

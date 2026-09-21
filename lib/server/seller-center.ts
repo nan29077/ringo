@@ -57,16 +57,18 @@ export async function sellerBalance(db: DB, sellerId: string) {
 /** Counts for the seller console navigation badges / attention list. */
 export async function sellerCounts(db: DB, sellerId: string) {
   const n = async (q: Promise<{ v: number }[]>) => (await q)[0]?.v ?? 0;
-  const [pendingService, overdueService, refundRequests, openInquiries, rejectedProducts, inReview] = await Promise.all([
+  const [pendingService, overdueService, refundRequests, openInquiries, unreadInquiries, rejectedProducts, inReview] = await Promise.all([
     n(db.select({ v: count() }).from(s.orders).where(and(eq(s.orders.sellerId, sellerId), eq(s.orders.status, "paid"), inArray(s.orders.fulfillmentStatus, ["pending", "in_progress"])))),
     n(db.select({ v: count() }).from(s.orders).where(and(eq(s.orders.sellerId, sellerId), eq(s.orders.status, "paid"), inArray(s.orders.fulfillmentStatus, ["pending", "in_progress"]), sql`${s.orders.dueAt} < now()`))),
     n(db.select({ v: count() }).from(s.orders).where(and(eq(s.orders.sellerId, sellerId), eq(s.orders.refundStatus, "requested"), eq(s.orders.status, "paid")))),
-    // Unread for the seller: the buyer wrote after the seller last opened the thread.
+    // Two different questions, so two counts. "Awaiting a reply" is a to-do (the dashboard card and its
+    // ?status=open link); "unread" is what the sidebar badge shows and clears the moment the thread is opened.
+    n(db.select({ v: count() }).from(s.inquiries).where(and(eq(s.inquiries.sellerId, sellerId), eq(s.inquiries.status, "open")))),
     n(db.select({ v: count() }).from(s.inquiries).where(and(eq(s.inquiries.sellerId, sellerId), ne(s.inquiries.status, "closed"), unreadForStaff))),
     n(db.select({ v: count() }).from(s.products).where(and(eq(s.products.sellerId, sellerId), eq(s.products.status, "rejected")))),
     n(db.select({ v: count() }).from(s.products).where(and(eq(s.products.sellerId, sellerId), eq(s.products.status, "pending_review")))),
   ]);
-  return { pendingService, overdueService, refundRequests, openInquiries, rejectedProducts, inReview };
+  return { pendingService, overdueService, refundRequests, openInquiries, unreadInquiries, rejectedProducts, inReview };
 }
 
 /** Date → value for <input type="datetime-local"> in the site timezone (matches `parseZonedInput`). */

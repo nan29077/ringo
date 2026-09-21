@@ -1,5 +1,6 @@
 import "server-only";
-import { and, gte, lt, type SQL, type AnyColumn } from "drizzle-orm";
+import { and, gte, ilike, inArray, lt, or, sql, type SQL, type AnyColumn } from "drizzle-orm";
+import * as s from "@/db/schema";
 import { addZonedDays, parseZonedInput, startOfZonedDaysAgo } from "@/lib/time";
 
 export type SP = Record<string, string | string[] | undefined>;
@@ -50,4 +51,16 @@ export function csvCell(value: unknown) {
 export function csvResponse(filename: string, rows: unknown[][]) {
   const body = "﻿" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n");
   return new Response(body, { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="${filename}"` } });
+}
+
+/**
+ * Orders keep the English product title only (it is frozen at purchase time), so a search typed in
+ * Korean found nothing. This also matches the product's Korean title, through a subquery so every
+ * order list can use it without adding a join.
+ */
+export function orderProductTitleMatch(pattern: string) {
+  return or(
+    ilike(s.orders.productTitle, pattern),
+    inArray(s.orders.productId, sql`(select ${s.products.id} from ${s.products} where ${s.products.titleKo} ilike ${pattern})`),
+  );
 }

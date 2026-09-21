@@ -22,7 +22,7 @@ export default async function AdminMessageDetail({ params }: { params: Promise<{
   const label = { sent: t("Sent", "발송 완료"), logged: t("Logged only (not delivered)", "기록만 됨 (미발송)"), failed: t("Failed", "발송 실패") }[m.status];
   return (
     <>
-      <PageHeader title={m.subject} crumbs={[{ href: "/admin/messages", label: t("Email log", "메일 발송 내역") }, { label: m.subject }]} />
+      <PageHeader title={m.subject} crumbs={[{ href: "/admin/messages", label: t("Sent emails", "보낸 메일") }, { label: m.subject }]} />
       <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
         <Panel title={t("Body (plain text)", "본문 (텍스트)")}>
           <pre className="whitespace-pre-wrap break-words rounded-lg bg-[#f8f9fb] p-4 font-sans text-sm leading-relaxed text-[#1c1d22]">{m.bodyText}</pre>

@@ -37,7 +37,7 @@ export default async function AdminSellerApplications() {
   return (
     <>
       <PageHeader title={t("Seller applications", "입점 신청")} description={t("Review store applications. Approved applicants get the seller role and access to the seller center.", "입점 신청서를 검토하세요. 승인하면 판매자 권한과 판매자 센터 이용 권한이 부여됩니다.")} />
-      {settings.moderation.autoApproveSellers && <div className="mb-4"><Notice tone="warn">{t("Auto-approval of sellers is ON in settings — new applications are approved without review.", "환경 설정에서 판매자 자동 승인이 켜져 있어 신규 신청은 심사 없이 승인됩니다.")}</Notice></div>}
+      {settings.moderation.autoApproveSellers && <div className="mb-4"><Notice tone="warn">{t("Auto-approval of sellers is ON in settings — new applications are approved without review.", "기본 설정에서 판매자 자동 승인이 켜져 있어 신규 신청은 심사 없이 승인됩니다.")}</Notice></div>}
 
       <Panel className="mb-4" title={<>{t("Pending applications", "심사 대기")} <span className="ml-1 text-[#ed4b2e]">{pending.length}</span></>} bodyClass={pending.length ? "p-0" : ""}>
         {pending.length === 0 ? (

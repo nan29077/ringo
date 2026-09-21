@@ -13,7 +13,7 @@ import { StatusBadge } from "@/components/console/status-badge";
 import { ActionButton, ActionForm } from "@/components/common/action-form";
 import { approveProduct, rejectProduct } from "../actions";
 
-export const metadata = { title: "Review queue" };
+export const metadata = { title: "Products to review" };
 
 export default async function AdminReviewQueue() {
   await requireAdmin();
@@ -38,7 +38,7 @@ export default async function AdminReviewQueue() {
   return (
     <>
       <PageHeader
-        title={t("Product review queue", "상품 심사")}
+        title={t("Products to review", "승인 대기 상품")}
         description={t("Products submitted by sellers, oldest first. Approving publishes immediately; rejection reasons are emailed to the seller.", "판매자가 심사를 요청한 상품입니다 (오래된 순). 승인 시 즉시 판매되며 반려 사유는 판매자에게 메일로 전달됩니다.")}
         crumbs={[{ href: "/admin/products", label: t("Products", "상품 관리") }, { label: t("Review queue", "상품 심사") }]}
       />

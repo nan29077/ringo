@@ -7,7 +7,7 @@ import { PageHeader, Panel, Field, Notice } from "@/components/console/ui";
 import { ActionForm } from "@/components/common/action-form";
 import { sellerUpdatePayout } from "../actions";
 
-export const metadata = { title: "Payout account" };
+export const metadata = { title: "Bank account for payouts" };
 
 export default async function SellerPayout() {
   const { seller } = await requireSeller();
@@ -16,7 +16,7 @@ export default async function SellerPayout() {
   const registered = !!seller.payoutMethod && !!seller.payoutAccountNumber;
   return (
     <>
-      <PageHeader title={t("Payout account", "정산 계좌")} description={t("Where your settlements are transferred.", "정산금을 받을 계좌 정보를 관리하세요.")} />
+      <PageHeader title={t("Bank account for payouts", "정산 받을 계좌")} description={t("Where your settlements are transferred.", "정산금을 받을 계좌 정보를 관리하세요.")} />
       <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
         <ActionForm action={sellerUpdatePayout} className="grid gap-4" confirm={registered ? t("Change the payout account? Pending payouts will be sent to the new account.", "정산 계좌를 변경할까요? 지급 대기 중인 정산금도 새 계좌로 지급됩니다.") : undefined}>
           {!registered && <Notice tone="warn">{t("No payout account yet. Register one to receive settlements.", "아직 정산 계좌가 없습니다. 정산을 받으려면 등록하세요.")}</Notice>}

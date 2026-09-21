@@ -23,6 +23,14 @@ const optionalDate = z.preprocess(blank, z.string().optional()).transform((v, ct
   return d;
 });
 
+// A past end date is only refused when it is being set now; an already-ended coupon can still be edited.
+const minuteOf = (d: Date | null | undefined) => (d ? Math.floor(d.getTime() / 60000) : null);
+function assertEndNotPast(endsAt: Date | null, before?: Date | null) {
+  if (!endsAt || endsAt.getTime() >= Date.now()) return;
+  if (before !== undefined && minuteOf(before) === minuteOf(endsAt)) return;
+  throw new CommerceError("coupon_end_past");
+}
+
 const couponInput = z
   .object({
     code: z.string().trim().toUpperCase().min(3).max(40).regex(/^[A-Z0-9_-]+$/),
@@ -76,12 +84,14 @@ export async function adminSaveCoupon(fd: FormData): Promise<ActionResult> {
     if (couponId) {
       const [existing] = await db.select().from(s.coupons).where(and(eq(s.coupons.id, couponId), isNull(s.coupons.sellerId)));
       if (!existing) throw new CommerceError("not_found");
+      assertEndNotPast(values.endsAt, existing.endsAt);
       if (existing.usedCount > 0 && (existing.kind !== values.kind || existing.value !== values.value || existing.code !== values.code)) throw new CommerceError("in_use");
       if (values.usageLimit != null && values.usageLimit < existing.usedCount) throw new CommerceError("invalid_state");
       await db.update(s.coupons).set(values).where(eq(s.coupons.id, couponId));
       await audit(db, viewer, "coupon.update", "coupon", couponId, { code: values.code, before: { value: existing.value, kind: existing.kind, active: existing.active, usageLimit: existing.usageLimit, endsAt: existing.endsAt }, after: { value: values.value, kind: values.kind, active: values.active, usageLimit: values.usageLimit, endsAt: values.endsAt } });
       return { ok: true, message: t("Coupon saved.", "쿠폰을 저장했습니다.") };
     }
+    assertEndNotPast(values.endsAt);
     const [row] = await db.insert(s.coupons).values({ ...values, sellerId: null, createdBy: viewer.user.id }).onConflictDoNothing().returning();
     if (!row) throw new CommerceError("code_taken");
     await audit(db, viewer, "coupon.create", "coupon", row.id, { code: row.code, scope: "platform", kind: row.kind, value: row.value });

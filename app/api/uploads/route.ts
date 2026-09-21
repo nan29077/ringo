@@ -8,6 +8,7 @@ import { flagContentChange, getProductForActor } from "@/lib/server/catalog";
 import { getOrderForActor } from "@/lib/server/commerce";
 import { audit } from "@/lib/server/audit";
 import { rateLimit } from "@/lib/server/request";
+import { getT } from "@/lib/server/i18n-server";
 
 export const runtime = "nodejs";
 
@@ -24,15 +25,20 @@ export async function POST(request: Request) {
   if (origin && host && new URL(origin).host !== host) return NextResponse.json({ error: "Bad origin" }, { status: 403 });
   const viewer = await getViewer();
   if (!viewer) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
-  if (!rateLimit(`upload:${viewer.user.id}`, 60, 10 * 60000)) return NextResponse.json({ error: "Too many uploads" }, { status: 429 });
+  // Every upload kind comes from a console (seller center or admin), which defaults to Korean; the
+  // message is shown in the uploader's toast, so it follows the console language.
+  const { t } = await getT("ko");
+  if (!rateLimit(`upload:${viewer.user.id}`, 60, 10 * 60000)) return NextResponse.json({ error: t("Too many uploads. Try again in a few minutes.", "업로드가 너무 많습니다. 잠시 후 다시 시도하세요.") }, { status: 429 });
   const form = await request.formData().catch(() => null);
   const file = form?.get("file");
   const kind = String(form?.get("kind") || "") as Kind;
-  if (!form || !(file instanceof File) || !kinds.includes(kind)) return NextResponse.json({ error: "Invalid upload" }, { status: 400 });
+  if (!form || !(file instanceof File) || !kinds.includes(kind)) return NextResponse.json({ error: t("Choose a file to upload.", "업로드할 파일을 선택하세요.") }, { status: 400 });
   const isImage = kind === "cover" || kind === "banner" || kind === "avatar";
   const limit = isImage ? 10 * 1024 * 1024 : maxUploadBytes();
-  if (file.size === 0 || file.size > limit) return NextResponse.json({ error: `File must be between 1 byte and ${Math.round(limit / 1048576)} MB` }, { status: 413 });
-  if (isImage && !IMAGE_TYPES.includes(file.type)) return NextResponse.json({ error: "Use JPG, PNG, WebP or GIF" }, { status: 415 });
+  const mb = Math.round(limit / 1048576);
+  if (file.size === 0) return NextResponse.json({ error: t("The file is empty.", "빈 파일입니다.") }, { status: 413 });
+  if (file.size > limit) return NextResponse.json({ error: t(`The file is too large. The limit is ${mb} MB.`, `파일이 너무 큽니다. 최대 ${mb}MB까지 올릴 수 있습니다.`) }, { status: 413 });
+  if (isImage && !IMAGE_TYPES.includes(file.type)) return NextResponse.json({ error: t("Use a JPG, PNG, WebP or GIF image.", "JPG, PNG, WebP, GIF 이미지만 올릴 수 있습니다.") }, { status: 415 });
   const db = await getDb();
 
   try {
@@ -76,6 +82,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ key, url: `/media/${key}`, filename, bytes: file.size });
   } catch (err) {
     const message = err instanceof Error ? err.message : "error";
-    return NextResponse.json({ error: message === "forbidden" || message === "not_found" ? "Not allowed" : "Upload failed" }, { status: message === "forbidden" || message === "not_found" ? 403 : 500 });
+    const denied = message === "forbidden" || message === "not_found";
+    return NextResponse.json({ error: denied ? t("You cannot upload here.", "이곳에는 업로드할 권한이 없습니다.") : t("Upload failed. Please try again.", "업로드에 실패했습니다. 다시 시도하세요.") }, { status: denied ? 403 : 500 });
   }
 }

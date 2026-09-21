@@ -5,7 +5,7 @@ import type { DB } from "./db";
 import type { Viewer } from "./auth";
 import { CommerceError, addOrderEvent, adjustmentSettlementWhere } from "./commerce";
 import { getSettings } from "./settings";
-import { likeQ, one, periodWhere, type SP } from "./list";
+import { likeQ, one, orderProductTitleMatch, periodWhere, type SP } from "./list";
 import { newOrderNo } from "./ids";
 
 /* ------------------------------------------------------------------ shared helpers (super-admin console) */
@@ -31,7 +31,7 @@ export function adminOrderWhere(sp: SP) {
   const where: (SQL | undefined)[] = [periodWhere(basis, sp)];
   if (q) {
     const l = likeQ(q);
-    where.push(or(ilike(s.orders.orderNo, l), ilike(s.orders.buyerName, l), ilike(s.orders.buyerEmail, l), ilike(s.orders.productTitle, l), ilike(s.sellers.displayName, l)));
+    where.push(or(ilike(s.orders.orderNo, l), ilike(s.orders.buyerName, l), ilike(s.orders.buyerEmail, l), orderProductTitleMatch(l), ilike(s.sellers.displayName, l)));
   }
   const st = one(sp, "status");
   if (ORDER.includes(st)) where.push(eq(s.orders.status, st as s.OrderStatus));

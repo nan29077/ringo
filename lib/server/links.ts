@@ -31,7 +31,8 @@ export const linkInput = z.object({
     }
     return d;
   }),
-  code: z.string().trim().max(40).regex(/^[a-zA-Z0-9-]*$/).optional(),
+  // Same rule the /l/[code] route accepts, so a saved link can never be one that does not open.
+  code: z.string().trim().max(40).regex(/^[a-zA-Z0-9-]*$/).refine((v) => !v || v.length >= 3, "Code too short").optional(),
 });
 
 export async function saveLink(db: DB, viewer: Viewer, raw: Record<string, unknown>, linkId?: string) {
@@ -49,7 +50,9 @@ export async function saveLink(db: DB, viewer: Viewer, raw: Record<string, unkno
   // The form renders minutes, so a stored value with seconds still counts as unchanged.
   const expiryUnchanged = !!existing && minute(existing.expiresAt) === minute(input.expiresAt);
   if (input.expiresAt && input.expiresAt.getTime() < Date.now() && !expiryUnchanged) throw new CommerceError("expiry_past");
-  if (input.couponCode) {
+  // Re-checked only when the coupon is being attached or changed, like the expiry above: an attached coupon that
+  // later expired must not block editing the link's other fields (checkout ignores an expired coupon anyway).
+  if (input.couponCode && input.couponCode !== existing?.couponCode) {
     // The product page promises buyers the coupon will apply, so the same conditions checkout enforces
     // are checked here: an inactive, expired or other-product coupon must not be attachable.
     const [c] = await db.select().from(s.coupons).where(eq(s.coupons.code, input.couponCode));

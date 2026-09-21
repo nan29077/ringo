@@ -12,7 +12,7 @@ import { ActionButton } from "@/components/common/action-form";
 import { CopyButton } from "@/components/console/copy-button";
 import { adminSetProvider } from "../actions";
 
-export const metadata = { title: "Payment providers" };
+export const metadata = { title: "Payment setup" };
 
 const ENV_KEYS = ["API_BASE_URL", "MERCHANT_ID", "API_KEY", "WEBHOOK_SECRET", "IMPLEMENTED"];
 
@@ -40,12 +40,12 @@ export default async function AdminPaymentSettings() {
     { label: t("Database", "데이터베이스"), value: db_ === "postgres" ? "PostgreSQL (DATABASE_URL)" : "PGlite (embedded, .data/pglite)", ok: db_ === "postgres", hint: db_ === "postgres" ? t("Connected via DATABASE_URL.", "DATABASE_URL로 연결되어 있습니다.") : t("Embedded database for local development. Set DATABASE_URL (RDS/Aurora) in production.", "로컬 개발용 내장 DB입니다. 운영 환경에서는 DATABASE_URL(RDS/Aurora)을 설정하세요.") },
     { label: t("File storage", "파일 저장소"), value: storage === "s3" ? `Amazon S3 (${process.env.S3_BUCKET})` : "Local disk (.data/uploads)", ok: storage === "s3", hint: storage === "s3" ? t("Uploads are stored in S3 with server-side encryption.", "업로드 파일이 S3에 암호화 저장됩니다.") : t("Files are stored on the server disk. Set S3_BUCKET for multi-instance deployments.", "파일이 서버 디스크에 저장됩니다. 다중 서버 운영 시 S3_BUCKET을 설정하세요.") },
     { label: t("Email", "메일 발송"), value: smtp ? `SMTP (${process.env.SMTP_HOST})` : t("Not configured — logged only", "미설정 — 기록만 됨"), ok: smtp, hint: smtp ? t("Emails are delivered via SMTP.", "SMTP로 메일이 발송됩니다.") : t("Set SMTP_HOST / SMTP_USER / SMTP_PASS / MAIL_FROM. Until then emails only appear in the email log.", "SMTP_HOST / SMTP_USER / SMTP_PASS / MAIL_FROM을 설정하세요. 설정 전까지 메일은 발송 내역에만 기록됩니다.") },
-    { label: "APP_URL", value: appUrl ?? t("Not set", "미설정"), ok: !!appUrl, hint: appUrl ? t("Used for links in emails, deep links and PG callbacks.", "메일 링크, 딥링크, PG 콜백 주소에 사용됩니다.") : t(`Falling back to the request host (${origin}). Set APP_URL to the public https origin in production.`, `요청 호스트(${origin})를 사용 중입니다. 운영 환경에서는 공개 https 주소를 APP_URL로 설정하세요.`) },
+    { label: "APP_URL", value: appUrl ?? t("Not set", "미설정"), ok: !!appUrl, hint: appUrl ? t("Used for links in emails, sales links and PG callbacks.", "메일 링크, 판매 링크, PG 콜백 주소에 사용됩니다.") : t(`Falling back to the request host (${origin}). Set APP_URL to the public https origin in production.`, `요청 호스트(${origin})를 사용 중입니다. 운영 환경에서는 공개 https 주소를 APP_URL로 설정하세요.`) },
   ];
 
   return (
     <>
-      <PageHeader title={t("Payment providers", "결제 연동")} description={t("Which payment methods buyers can use at checkout, PG credentials and system status.", "구매자가 결제 시 사용할 수 있는 결제 수단, PG 연동 정보, 시스템 상태를 확인합니다.")} crumbs={[{ href: "/admin/settings", label: t("Settings", "설정") }, { label: t("Payment providers", "결제 연동") }]} />
+      <PageHeader title={t("Payment setup", "결제 서비스 설정")} description={t("Which payment methods buyers can use at checkout, PG credentials and system status.", "구매자가 결제 시 사용할 수 있는 결제 수단, PG 연동 정보, 시스템 상태를 확인합니다.")} crumbs={[{ href: "/admin/settings", label: t("Basic settings", "기본 설정") }, { label: t("Payment setup", "결제 서비스 설정") }]} />
 
       <div className="mb-4 grid gap-2">
         {usable.length === 0 && <Notice tone="danger">{t("No payment method is available at checkout. Buyers cannot pay until a provider is both available and enabled.", "사용 가능한 결제 수단이 없습니다. 결제사가 연동되고 사용 설정되기 전까지 구매자는 결제할 수 없습니다.")}</Notice>}

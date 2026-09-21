@@ -17,7 +17,7 @@ import { ActionButton } from "@/components/common/action-form";
 import { CopyButton } from "@/components/console/copy-button";
 import { sellerToggleLink } from "./actions";
 
-export const metadata = { title: "Deep links" };
+export const metadata = { title: "Sales links" };
 
 export default async function SellerLinks({ searchParams }: { searchParams: Promise<SP> }) {
   const viewer = await requireSeller();
@@ -39,7 +39,7 @@ export default async function SellerLinks({ searchParams }: { searchParams: Prom
   const cond = and(...where);
 
   const [rows, [{ total }], products, [totals]] = await Promise.all([
-    db.select({ l: s.deepLinks, titleEn: s.products.titleEn, titleKo: s.products.titleKo }).from(s.deepLinks).innerJoin(s.products, eq(s.products.id, s.deepLinks.productId)).where(cond).orderBy(desc(s.deepLinks.createdAt)).limit(size).offset(offset),
+    db.select({ l: s.deepLinks, titleEn: s.products.titleEn, titleKo: s.products.titleKo, productStatus: s.products.status, productVisible: s.products.visible }).from(s.deepLinks).innerJoin(s.products, eq(s.products.id, s.deepLinks.productId)).where(cond).orderBy(desc(s.deepLinks.createdAt)).limit(size).offset(offset),
     db.select({ total: count() }).from(s.deepLinks).where(cond),
     db.select({ id: s.products.id, titleEn: s.products.titleEn, titleKo: s.products.titleKo }).from(s.products).where(eq(s.products.sellerId, sellerId)).orderBy(s.products.titleEn),
     db
@@ -60,7 +60,7 @@ export default async function SellerLinks({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader
-        title={t("Deep links", "딥링크")}
+        title={t("Sales links", "판매 링크")}
         description={t("Trackable links for social posts, newsletters and ads. See clicks, orders and revenue per link.", "SNS, 뉴스레터, 광고용 추적 링크입니다. 링크별 클릭, 주문, 매출을 확인하세요.")}
         actions={<Link href="/seller/links/new" className="rc-btn rc-btn-brand"><Plus />{t("Create link", "링크 만들기")}</Link>}
       />
@@ -80,10 +80,10 @@ export default async function SellerLinks({ searchParams }: { searchParams: Prom
       <Panel title={<>{t("Links", "링크")} <span className="ml-1 text-[#8a8d96]">{total}</span></>} bodyClass="p-0">
         <DataTable
           head={[t("Link", "링크"), t("Product", "상품"), t("Tracking", "유입 추적"), t("Options", "옵션"), t("State", "상태"), t("Clicks", "클릭"), t("Orders", "주문"), t("Revenue", "매출"), ""]}
-          empty={<EmptyState title={t("No deep links yet", "딥링크가 없습니다")} description={t("Create a link for each channel to see which one sells.", "채널별로 링크를 만들어 어떤 채널에서 판매되는지 확인하세요.")} action={<Link href="/seller/links/new" className="rc-btn rc-btn-outline rc-btn-sm"><Plus />{t("Create link", "링크 만들기")}</Link>} />}
+          empty={<EmptyState title={t("No sales links yet", "판매 링크가 없습니다")} description={t("Create a link for each channel to see which one sells.", "채널별로 링크를 만들어 어떤 채널에서 판매되는지 확인하세요.")} action={<Link href="/seller/links/new" className="rc-btn rc-btn-outline rc-btn-sm"><Plus />{t("Create link", "링크 만들기")}</Link>} />}
           footer={<Pagination total={total} page={page} size={size} />}
         >
-          {rows.map(({ l, titleEn, titleKo }) => {
+          {rows.map(({ l, titleEn, titleKo, productStatus, productVisible }) => {
             const url = `${origin}/l/${l.code}`;
             const st = linkState(l);
             const stat = stats.get(l.id) ?? { orders: 0, cents: 0 };
@@ -103,7 +103,7 @@ export default async function SellerLinks({ searchParams }: { searchParams: Prom
                   {l.couponCode && <div>{t("Coupon", "쿠폰")}: <b>{l.couponCode}</b></div>}
                   <div className="text-[#8a8d96]">{l.expiresAt ? t(`Expires ${formatDate(l.expiresAt, lang)}`, `${formatDate(l.expiresAt, lang)} 만료`) : t("No expiry", "만료 없음")}</div>
                 </td>
-                <td><Badge tone={stateTone[st]}>{stateLabel[st]}</Badge></td>
+                <td><Badge tone={stateTone[st]}>{stateLabel[st]}</Badge>{(productStatus !== "published" || !productVisible) && <div className="mt-1"><Badge tone="amber">{t("Product not on sale", "상품 판매중 아님")}</Badge></div>}</td>
                 <td className="font-medium">{l.clicks.toLocaleString()}</td>
                 <td>{stat.orders}{l.clicks > 0 && <div className="text-[11px] text-[#8a8d96]">{((stat.orders / l.clicks) * 100).toFixed(1)}%</div>}</td>
                 <td className="whitespace-nowrap font-medium">{formatMoney(stat.cents, currency, lang)}</td>

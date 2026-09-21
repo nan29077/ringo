@@ -58,7 +58,7 @@ export default async function AdminReviews({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title={t("Buyer reviews", "구매평 관리")} description={t("All product reviews. Hidden reviews are removed from the store and excluded from the product rating.", "전체 상품 구매평입니다. 숨긴 구매평은 스토어에서 제외되고 상품 평점 계산에서도 빠집니다.")} />
+      <PageHeader title={t("Buyer reviews", "구매 후기")} description={t("All product reviews. Hidden reviews are removed from the store and excluded from the product rating.", "전체 상품 구매평입니다. 숨긴 구매평은 스토어에서 제외되고 상품 평점 계산에서도 빠집니다.")} />
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t("Average rating (visible)", "평균 평점 (공개)")} value={summary.n - summary.hidden ? summary.avg.toFixed(2) : "—"} hint={t(`${summary.n} reviews total`, `전체 구매평 ${summary.n}개`)} />
         <StatCard label={t("New · 7 days", "최근 7일 등록")} value={summary.recent} />

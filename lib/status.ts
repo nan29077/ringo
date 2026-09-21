@@ -86,9 +86,54 @@ export const orderEventType: Record<string, Entry> = {
   settlement_adjusted: m("Settlement adjusted", "정산 조정", "amber"),
   deliverable_uploaded: m("Delivery file uploaded", "납품 파일 업로드", "blue"),
   admin_grant: m("Granted by an operator", "운영자 수동 지급", "violet"),
+  entitlement_revoked: m("Access revoked by an operator", "운영자 이용 권한 회수", "red"),
   receipt_resent: m("Receipt re-sent", "영수증 재발송", "gray"),
   note: m("Admin note", "관리자 메모", "gray"),
 };
+
+/**
+ * Order-event detail lines are stored in English: they are an audit trail, and the stored text stays the
+ * source of truth. This renders them in the viewer's language by matching the templates the server
+ * writes (lib/server/commerce.ts, admin-ops.ts, the upload route and admin actions). Anything it does
+ * not recognise — an operator's free-text reason, a future template — is shown unchanged.
+ */
+const statusKo: Record<string, string> = { expired: "결제 만료", cancelled: "취소", refunded: "환불 완료", pending_payment: "결제 대기", paid: "결제 완료" };
+/** The default refund reason the consoles write when the approver adds no note of their own. */
+const approvedKo = (reason: string) => reason.replace(/^(Seller|Admin) approved buyer request: /, (_, who) => `${who === "Seller" ? "판매자" : "운영자"}가 구매자 요청을 승인함: `);
+
+const eventDetailKo: [RegExp, (m: RegExpMatchArray) => string][] = [
+  [/^Order created · (.+)$/, (m) => `주문 생성 · ${m[1]}`],
+  [/^Order created$/, () => "주문 생성"],
+  [/^Order cancelled before payment$/, () => "결제 전에 주문을 취소했습니다"],
+  [/^Payment started via (.+)$/, (m) => `${m[1]}(으)로 결제를 시작했습니다`],
+  [/^Payment succeeded \((.+)\)$/, (m) => `결제 성공 (${m[1]})`],
+  [/^Payment (failed|cancelled): ([\s\S]*)$/, (m) => `결제 ${m[1] === "failed" ? "실패" : "취소"}: ${m[2]}`],
+  [/^Payment window (?:passed|elapsed)$/, () => "결제 가능 시간이 지났습니다"],
+  [/^Payment received while order was (\w+)\. Refund manually\.$/, (m) => `주문이 ${statusKo[m[1]] ?? m[1]} 상태일 때 결제가 들어왔습니다. 수동으로 환불하세요.`],
+  [/^Product or store was unavailable at payment time\. Nothing was delivered — refund this order\.$/, () => "결제 완료 시점에 상품 또는 스토어가 판매 중지 상태였습니다. 아무것도 전달되지 않았으니 환불하세요."],
+  [/^Production started$/, () => "제작을 시작했습니다"],
+  [/^Delivery sent to buyer$/, () => "구매자에게 납품했습니다"],
+  [/^File uploaded: ([\s\S]+)$/, (m) => `파일 업로드: ${m[1]}`],
+  [/^Refund requested: ([\s\S]*)$/, (m) => `환불 요청: ${m[1]}`],
+  [/^Refund rejected: ([\s\S]*)$/, (m) => `환불 거절: ${m[1]}`],
+  [/^Refunded (\S+) \(manual\): ([\s\S]*)$/, (m) => `${m[1]} 수동 환불: ${approvedKo(m[2])}`],
+  [/^Refunded (\S+): ([\s\S]*)$/, (m) => `${m[1]} 환불: ${approvedKo(m[2])}`],
+  [/^Removed from pending settlement (\w+)$/, (m) => `지급 대기 정산서 ${m[1]}에서 제외했습니다`],
+  [/^Refund after payout: (\S+) will be deducted from the next payout \(adjustment (\w+)\)$/, (m) => `지급 후 환불: ${m[1]}이(가) 다음 정산에서 차감됩니다 (조정 ${m[2]})`],
+  [/^Access granted manually by admin: ([\s\S]*)$/, (m) => `운영자가 이용 권한을 수동으로 지급: ${m[1]}`],
+  [/^Access revoked by admin: ([\s\S]*)$/, (m) => `운영자가 이용 권한을 회수: ${m[1]}`],
+  [/^Receipt re-sent to (.+)$/, (m) => `${m[1]}(으)로 영수증을 다시 보냈습니다`],
+];
+
+export function eventDetail(message: string | null | undefined, lang: "en" | "ko") {
+  if (!message) return null;
+  if (lang !== "ko") return message;
+  for (const [re, render] of eventDetailKo) {
+    const match = message.match(re);
+    if (match) return render(match);
+  }
+  return message;
+}
 
 export function label(map: Record<string, Entry>, key: string | null | undefined, lang: "en" | "ko") {
   const e = key ? map[key] : undefined;

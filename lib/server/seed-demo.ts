@@ -128,7 +128,7 @@ export async function seedDemoData(db: DB) {
 
   const [link] = await db.insert(s.deepLinks).values({ code: "mgw-insta", productId: idMap.p1, sellerId: sn.id, name: "Make Good Work · Instagram", source: "instagram", medium: "social", campaign: "creative-start", createdAt: new Date(now - 25 * day) }).returning();
   const [link2] = await db.insert(s.deepLinks).values({ code: "type-news", productId: idMap.p2, sellerId: sn.id, name: "Studio kit · Newsletter", source: "newsletter", medium: "email", campaign: "studio-edit", destination: "checkout", createdAt: new Date(now - 22 * day) }).returning();
-  // The click counter and the click log have to agree, or the deep-link report contradicts itself.
+  // The click counter and the click log have to agree, or the sales-link report contradicts itself.
   for (const [row, count, referrer] of [[link, 42, "https://instagram.com/"], [link2, 17, "https://mail.example.com/"]] as const) {
     await db.insert(s.linkClicks).values(
       Array.from({ length: count }, (_, i) => ({

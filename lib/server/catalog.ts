@@ -1,4 +1,5 @@
 import "server-only";
+import { mailOrigin } from "./request";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import * as s from "@/db/schema";
@@ -31,7 +32,10 @@ export const productInput = z.object({
   price: money,
   compareAt: z.union([z.literal(""), money]).optional().transform((v) => (v === "" || v === undefined ? null : v)),
   deliveryDays: z.union([z.literal(""), z.coerce.number().int().min(1).max(180)]).optional().transform((v) => (v === "" || v === undefined ? null : v)),
-  lessons: z.string().max(10000).optional(),
+  // One JSON string for every lesson together. It used to be capped at 10,000 characters, below the
+  // 20,000 a single lesson note accepts in the editor, so a long note could never be saved. 500,000 fits
+  // dozens of full notes and stays under the 2 MB action body limit even for Korean (3 bytes a char).
+  lessons: z.string().max(500000, "Lessons too long").optional(),
   // Only a preset name or an uploaded public key: a free-form value could point the <img> anywhere.
   coverKey: optionalText(300).refine((v) => v == null || /^(preset:[a-z0-9-]{1,60}|public\/[A-Za-z0-9._\/-]{1,280})$/.test(v), { message: "Invalid cover" }),
   seoTitle: optionalText(160),
@@ -239,7 +243,7 @@ export async function setProductStatus(db: DB, viewer: Viewer, productId: string
   // Taking a product off sale is a moderation decision like a rejection, so it is told the same way.
   if (status === "suspended") {
     const [owner] = await db.select({ email: s.users.email, locale: s.users.locale }).from(s.sellers).innerJoin(s.users, eq(s.users.id, s.sellers.userId)).where(eq(s.sellers.id, product.sellerId));
-    if (owner) await notify(db, owner.email, "product_suspended", owner.locale, { product: (owner.locale === "ko" ? product.titleKo : product.titleEn) || product.titleEn, reason: reason?.trim() || "-", url: `${process.env.APP_URL || ""}/seller/products/${productId}` });
+    if (owner) await notify(db, owner.email, "product_suspended", owner.locale, { product: (owner.locale === "ko" ? product.titleKo : product.titleEn) || product.titleEn, reason: reason?.trim() || "-", url: `${await mailOrigin()}/seller/products/${productId}` });
   }
 }
 

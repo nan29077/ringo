@@ -10,7 +10,7 @@ import { PageHeader, Panel, Field, Notice } from "@/components/console/ui";
 import { ActionForm } from "@/components/common/action-form";
 import { adminSaveSettings } from "./actions";
 
-export const metadata = { title: "Preferences" };
+export const metadata = { title: "Basic settings" };
 
 export default async function AdminSettings() {
   await requireAdmin();
@@ -30,7 +30,7 @@ export default async function AdminSettings() {
 
   return (
     <>
-      <PageHeader title={t("Preferences", "환경 설정")} description={t("Marketplace-wide settings. Every change is recorded in the audit log.", "쇼핑몰 전체 설정입니다. 모든 변경은 관리 작업 로그에 기록됩니다.")} actions={<Link href="/admin/settings/payments" className="rc-btn rc-btn-outline">{t("Payment providers", "결제 연동")}</Link>} />
+      <PageHeader title={t("Basic settings", "기본 설정")} description={t("Marketplace-wide settings. Every change is recorded in the audit log.", "쇼핑몰 전체 설정입니다. 모든 변경은 관리자 작업 기록에 기록됩니다.")} actions={<Link href="/admin/settings/payments" className="rc-btn rc-btn-outline">{t("Payment setup", "결제 서비스 설정")}</Link>} />
       <div className="grid gap-4 xl:grid-cols-2">
         <Panel title={t("Site", "기본 정보")} description={updated("site")}>
           <ActionForm action={adminSaveSettings} className="grid gap-4">

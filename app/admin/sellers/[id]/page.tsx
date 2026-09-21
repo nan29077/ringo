@@ -126,7 +126,7 @@ export default async function AdminSellerDetail({ params }: { params: Promise<{ 
                 [t("Owner status", "계정 상태"), <StatusBadge key="us" map={userStatus} value={owner.status} lang={lang} />],
                 [t("Website", "웹사이트"), x.website && /^https?:\/\//i.test(x.website) ? <a key="w" href={x.website} target="_blank" rel="noopener noreferrer nofollow" className="text-[#2f4ac2] hover:underline">{x.website}</a> : x.website ?? "—"],
                 [t("Bio", "소개"), x.bio ?? "—"],
-                [t("Deep links", "딥링크"), <Link key="l" href={`/admin/links?seller=${x.id}`} className="hover:underline">{t(`${links.n} links`, `${links.n}개`)}</Link>],
+                [t("Sales links", "판매 링크"), <Link key="l" href={`/admin/links?seller=${x.id}`} className="hover:underline">{t(`${links.n} links`, `${links.n}개`)}</Link>],
                 [t("Applied", "신청일"), formatDate(x.createdAt, lang)],
                 [t("Approved", "승인일"), formatDate(x.reviewedAt, lang)],
               ]}

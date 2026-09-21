@@ -73,7 +73,7 @@ export default async function SellPage() {
           <div className="mt-8 flex flex-wrap gap-3 text-sm">
             <span className="rounded-full border border-[#e4e3de] bg-white px-4 py-2"><b>{commission}%</b> {t("commission per sale", "판매 수수료")}</span>
             <span className="rounded-full border border-[#e4e3de] bg-white px-4 py-2">{t("No monthly fee", "월 이용료 없음")}</span>
-            <span className="rounded-full border border-[#e4e3de] bg-white px-4 py-2"><Link2 size={14} className="mr-1 inline" />{t("Trackable deep links & coupons", "딥링크 · 쿠폰 마케팅")}</span>
+            <span className="rounded-full border border-[#e4e3de] bg-white px-4 py-2"><Link2 size={14} className="mr-1 inline" />{t("Trackable sales links & coupons", "판매 링크 · 쿠폰 마케팅")}</span>
           </div>
 
           <h2 className="!mt-12 text-sm font-semibold uppercase tracking-[0.08em] text-[#8a8c84]">{t("What you can sell", "판매할 수 있는 상품")}</h2>

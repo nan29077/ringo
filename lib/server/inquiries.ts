@@ -1,4 +1,5 @@
 import "server-only";
+import { mailOrigin } from "./request";
 import { asc, eq, isNull, lt, or } from "drizzle-orm";
 import { z } from "zod";
 import * as s from "@/db/schema";
@@ -87,7 +88,7 @@ export async function createInquiry(db: DB, viewer: Viewer, raw: Record<string, 
   const [inq] = await db.insert(s.inquiries).values({ userId: viewer.user.id, sellerId, productId: input.productId, orderId: input.orderId, category: input.category, subject: input.subject, buyerReadAt: new Date() }).returning();
   await db.insert(s.inquiryMessages).values({ inquiryId: inq.id, authorId: viewer.user.id, authorRole: viewer.user.role, body: input.body });
   // Tell whoever has to answer. Without this the thread only shows up if they happen to open the console.
-  const base = process.env.APP_URL || "";
+  const base = await mailOrigin();
   const vars = { subject: input.subject, body: input.body, from: viewer.user.name || viewer.user.email };
   if (sellerContact) {
     await notify(db, sellerContact.email, "inquiry_new", sellerContact.locale, { ...vars, url: `${base}/seller/inquiries/${inq.id}` });
@@ -110,7 +111,7 @@ export async function replyInquiry(db: DB, viewer: Viewer, inquiryId: string, bo
     .update(s.inquiries)
     .set({ status, updatedAt: now, ...(access === "owner" ? { buyerReadAt: now } : { staffReadAt: now }) })
     .where(eq(s.inquiries.id, inquiryId));
-  const base = process.env.APP_URL || "";
+  const base = await mailOrigin();
   if (access !== "owner") {
     await notify(db, userEmail, "inquiry_reply", userLocale, {
       subject: inquiry.subject,

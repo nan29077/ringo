@@ -37,6 +37,7 @@ const messages: Record<string, [string, string]> = {
   nothing_to_settle: ["No orders are eligible for settlement.", "정산 가능한 주문이 없습니다."],
   nothing_to_pay_out: ["This settlement has nothing to pay out.", "지급할 금액이 없는 정산서입니다."],
   reference_reserved: ["\"merged:\" is reserved for refund deductions. Use the bank or e-wallet transfer reference.", "\"merged:\"는 환불 차감 전용 표기입니다. 은행·전자지갑 송금 참조번호를 입력하세요."],
+  below_min_payout: ["This payout is below the minimum payout amount in Basic settings. The balance carries over until it reaches the minimum.", "정산 금액이 기본 설정의 최소 지급액보다 적습니다. 최소 지급액이 모일 때까지 다음 정산으로 넘어갑니다."],
   adjustments_exceed_payout: ["Pending refund deductions exceed the payout amount. Settle again after more orders become eligible.", "환불 차감액이 정산 금액보다 큽니다. 정산 가능 주문이 더 쌓인 뒤 다시 시도하세요."],
   refund_open_in_batch: ["An order in this settlement has an open refund request. Resolve it first, then pay out.", "이 정산서에 환불 요청이 열려 있는 주문이 있습니다. 환불 요청을 먼저 처리한 뒤 지급하세요."],
   amount_mismatch: ["Payment amount does not match the order.", "결제 금액이 주문 금액과 다릅니다."],
@@ -52,12 +53,13 @@ const messages: Record<string, [string, string]> = {
   lessons_required: ["Add at least one lesson to the course.", "강의에는 최소 1개의 레슨이 필요합니다."],
   last_file_on_sale: ["A product on sale must keep at least one file. Upload the replacement first, then delete this one.", "판매 중인 상품에는 파일이 최소 1개 있어야 합니다. 새 파일을 먼저 업로드한 뒤 삭제하세요."],
   code_taken: ["This code is already in use. Enter a different one.", "이미 사용 중인 코드입니다. 다른 코드를 입력하세요."],
+  coupon_end_past: ["The end date has already passed. Choose a future date, or turn the coupon off instead.", "종료일이 이미 지났습니다. 앞으로의 날짜를 고르거나, 쿠폰 사용을 끄세요."],
   expiry_past: ["The expiry date must be in the future. To stop a link now, pause it instead.", "만료일은 현재 이후여야 합니다. 지금 중단하려면 일시중지를 사용하세요."],
   file_required: ["Please attach a file.", "파일을 첨부하세요."],
   in_use: ["This item is in use and cannot be deleted.", "사용 중인 항목이라 삭제할 수 없습니다."],
 };
 
-export async function errorMessage(code: string, fallbackLang: Lang = "en") {
+export async function errorMessage(code: string, fallbackLang?: Lang) {
   const { t } = await getT(fallbackLang);
   const m = messages[code];
   return m ? t(m[0], m[1]) : code;
@@ -70,11 +72,47 @@ const fieldLabels: Record<string, [string, string]> = {
   code: ["code", "코드"], name: ["name", "이름"], value: ["discount", "할인"], price: ["price", "판매가"],
   compareAt: ["compare-at price", "정가"], startsAt: ["start", "시작 일시"], endsAt: ["end", "종료 일시"],
   expiresAt: ["expiry", "만료 일시"], minOrder: ["minimum order", "최소 주문 금액"], maxDiscount: ["maximum discount", "최대 할인"],
-  usageLimit: ["usage limit", "사용 한도"], perUserLimit: ["per-buyer limit", "1인 한도"], titleEn: ["title (English)", "상품명 (영문)"],
-  titleKo: ["title (Korean)", "상품명 (한글)"], categoryId: ["category", "카테고리"], slug: ["address", "주소"],
-  deliveryDays: ["delivery time", "제작 기간"], reason: ["reason", "사유"], email: ["email", "이메일"], password: ["password", "비밀번호"],
+  usageLimit: ["usage limit", "사용 한도"], perUserLimit: ["per-buyer limit", "1인 한도"],
+  // Products and banners both have bilingual titles, so the label says "title", not "product name".
+  titleEn: ["title (English)", "제목 (영문)"], titleKo: ["title (Korean)", "제목 (한글)"],
+  subtitleEn: ["subtitle (English)", "부제 (영문)"], subtitleKo: ["subtitle (Korean)", "부제 (한글)"],
+  ctaEn: ["button text (English)", "버튼 문구 (영문)"], ctaKo: ["button text (Korean)", "버튼 문구 (한글)"],
+  summaryEn: ["summary (English)", "요약 (영문)"], summaryKo: ["summary (Korean)", "요약 (한글)"],
+  descriptionEn: ["description (English)", "설명 (영문)"], descriptionKo: ["description (Korean)", "설명 (한글)"],
+  categoryId: ["category", "카테고리"], slug: ["address", "주소"], deliveryDays: ["delivery time", "제작 기간"],
+  lessons: ["lessons", "레슨"], coverKey: ["cover image", "대표 이미지"], seoTitle: ["SEO title", "검색 노출 제목"], seoDescription: ["SEO description", "검색 노출 설명"],
+  reason: ["reason", "사유"], email: ["email", "이메일"], password: ["password", "비밀번호"],
+  reference: ["transfer reference", "송금 참조번호"], title: ["title", "제목"], body: ["content", "내용"], subject: ["subject", "제목"],
+  linkUrl: ["link URL", "연결 URL"], imageKey: ["image", "이미지"], percent: ["commission rate", "수수료율"], memo: ["memo", "메모"],
+  displayName: ["store name", "스토어 이름"], bio: ["introduction", "소개"], website: ["website", "웹사이트"],
+  payoutAccountName: ["account holder", "예금주"], payoutAccountNumber: ["account number", "계좌번호"], payoutBank: ["bank", "은행"], payoutMethod: ["payout method", "정산 수단"],
+  source: ["source", "원천"], medium: ["medium", "매체"], campaign: ["campaign", "캠페인"], destination: ["destination", "목적지"],
+  applicationNote: ["application note", "신청 내용"], note: ["note", "내용"],
 };
-const fieldLabel = (path: string, lang: Lang) => fieldLabels[path]?.[lang === "ko" ? 1 : 0] ?? path;
+/** A label only for fields we know; an internal name is never shown to the user. */
+const fieldLabel = (path: string, lang: Lang) => fieldLabels[path]?.[lang === "ko" ? 1 : 0] ?? null;
+
+/** Plain English for the common Zod issues, instead of messages like "String must contain at least 1 character(s)". */
+function zodMessageEn(issue: ZodError["issues"][number]): string {
+  switch (issue.code) {
+    case "too_small":
+      if (issue.type === "string") return Number(issue.minimum) <= 1 ? "This field is required." : `Enter at least ${issue.minimum} characters.`;
+      if (issue.type === "number") return `Must be ${issue.inclusive ? "at least" : "more than"} ${issue.minimum}.`;
+      return issue.message;
+    case "too_big":
+      if (issue.type === "string") return `Keep it to ${issue.maximum} characters or fewer.`;
+      if (issue.type === "number") return `Must be ${issue.inclusive ? "at most" : "less than"} ${issue.maximum}.`;
+      return issue.message;
+    case "invalid_type":
+      return issue.received === "undefined" || issue.received === "null" ? "This field is required." : issue.expected === "number" ? "Enter a number." : "Invalid format.";
+    case "invalid_string":
+      return issue.validation === "email" ? "Enter a valid email address." : issue.validation === "url" ? "Enter a valid URL." : "Invalid format.";
+    case "invalid_enum_value":
+      return "Choose one of the available options.";
+    default:
+      return issue.message;
+  }
+}
 
 /** Korean wording for the most common Zod issues (the English message is used as-is in English). */
 function zodMessageKo(issue: ZodError["issues"][number]): string {
@@ -104,6 +142,12 @@ function zodMessageKo(issue: ZodError["issues"][number]): string {
         "Invalid date": "날짜 형식이 올바르지 않습니다.",
         "Must be after the start": "시작 일시보다 뒤여야 합니다.",
         "Must be after the start date": "시작 일시보다 뒤여야 합니다.",
+        "Must start with / or https://": "/ 또는 https:// 로 시작해야 합니다.",
+        "Invalid cover": "대표 이미지를 다시 선택하세요.",
+        "1–100": "1에서 100 사이여야 합니다.",
+        "Invalid URL": "URL 형식이 올바르지 않습니다.",
+        "Code too short": "3자 이상 입력하세요.",
+        "Lessons too long": "레슨 내용 전체가 너무 깁니다. 긴 강의 노트는 여러 레슨으로 나눠 주세요.",
       };
       return custom[issue.message] ?? issue.message;
     }
@@ -116,7 +160,7 @@ function zodMessageKo(issue: ZodError["issues"][number]): string {
  * Wraps a server action body: maps domain / validation errors into a localized ActionResult.
  * `fallbackLang` is used when the viewer has no language cookie (consoles default to "ko").
  */
-export async function run(fn: () => Promise<ActionResult | void>, fallbackLang: Lang = "en"): Promise<ActionResult> {
+export async function run(fn: () => Promise<ActionResult | void>, fallbackLang?: Lang): Promise<ActionResult> {
   try {
     return (await fn()) ?? { ok: true };
   } catch (err) {
@@ -126,10 +170,14 @@ export async function run(fn: () => Promise<ActionResult | void>, fallbackLang: 
     if (err instanceof ActionError) return { ok: false, error: messages[err.message] ? await errorMessage(err.message, fallbackLang) : err.message };
     if (err instanceof ZodError) {
       const issue = err.issues[0];
-      const path = issue.path.join(".");
+      // The last path segment is the field (lessons.3.title → title). A single value parsed on its own has
+      // no path at all; that and any field without a label get the message alone, never a blank "" or an
+      // internal name such as payoutAccountNumber.
+      const key = String(issue.path[issue.path.length - 1] ?? "");
+      const en = fieldLabel(key, "en"), ko = fieldLabel(key, "ko");
       return {
         ok: false,
-        error: t(`Check the "${fieldLabel(path, "en")}" field: ${issue.message}`, `"${fieldLabel(path, "ko")}" 항목을 확인하세요: ${zodMessageKo(issue)}`),
+        error: t(en ? `Check the "${en}" field: ${zodMessageEn(issue)}` : zodMessageEn(issue), ko ? `"${ko}" 항목을 확인하세요: ${zodMessageKo(issue)}` : zodMessageKo(issue)),
       };
     }
     console.error(err);

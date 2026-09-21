@@ -9,7 +9,7 @@ import { PageHeader, Panel, StatCard } from "@/components/console/ui";
 import { FilterBar, Pagination } from "@/components/console/filters";
 import { AdminOrderTable } from "../admin-order-table";
 
-export const metadata = { title: "Service production" };
+export const metadata = { title: "Custom orders to make" };
 
 export default async function AdminFulfillment({ searchParams }: { searchParams: Promise<SP> }) {
   await requireAdmin();
@@ -50,7 +50,7 @@ export default async function AdminFulfillment({ searchParams }: { searchParams:
   ]);
   return (
     <>
-      <PageHeader title={t("Service production", "제작 주문 관리")} description={t("Paid made-to-order service orders across all sellers. Overdue orders are listed first.", "전체 판매자의 결제 완료 제작 주문입니다. 납기가 지난 주문이 먼저 표시됩니다.")} />
+      <PageHeader title={t("Custom orders to make", "제작 요청 주문")} description={t("Paid made-to-order service orders across all sellers. Overdue orders are listed first.", "전체 판매자의 결제 완료 제작 주문입니다. 납기가 지난 주문이 먼저 표시됩니다.")} />
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t("Open service orders", "진행 중인 제작 주문")} value={stats.open} />
         <StatCard label={t("Not started", "제작 대기")} value={stats.waiting} />

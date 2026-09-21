@@ -11,7 +11,7 @@ import { formatMoney } from "@/lib/i18n";
 import { PageHeader, Panel, DataTable, EmptyState, StatCard } from "@/components/console/ui";
 import { AnalyticsNav, ShareBar } from "../range-tabs";
 
-export const metadata = { title: "Traffic sources" };
+export const metadata = { title: "Where buyers come from" };
 
 export default async function AdminTrafficAnalytics({ searchParams }: { searchParams: Promise<SP> }) {
   await requireAdmin();
@@ -61,7 +61,7 @@ export default async function AdminTrafficAnalytics({ searchParams }: { searchPa
     const max = Math.max(0, ...rows.map((r) => r.revenue));
     return (
       <Panel title={title} bodyClass="p-0">
-        <DataTable head={[first, t("Paid orders", "결제"), t("Revenue", "매출"), t("Share", "비중"), t("Via deep link", "딥링크 경유")]} empty={<EmptyState title={t("No paid orders in this period", "기간 내 결제가 없습니다")} />}>
+        <DataTable head={[first, t("Paid orders", "결제"), t("Revenue", "매출"), t("Share", "비중"), t("Via sales link", "판매 링크 경유")]} empty={<EmptyState title={t("No paid orders in this period", "기간 내 결제가 없습니다")} />}>
           {rows.map((r) => (
             <tr key={r.key}>
               <td className="max-w-[180px] truncate font-medium"><code className="text-xs">{r.key}</code></td>
@@ -78,12 +78,12 @@ export default async function AdminTrafficAnalytics({ searchParams }: { searchPa
 
   return (
     <>
-      <PageHeader title={t("Traffic sources", "유입 경로")} description={t("Where paying customers came from, based on the attribution saved at checkout (deep link or UTM-style source/medium/campaign).", "결제 시 저장된 유입 정보(딥링크 또는 source/medium/campaign) 기준으로 구매 고객의 유입 경로를 봅니다.")} />
+      <PageHeader title={t("Where buyers come from", "방문 경로")} description={t("Where paying customers came from, based on the attribution saved at checkout (sales link or UTM-style source/medium/campaign).", "결제 시 저장된 유입 정보(판매 링크 또는 source/medium/campaign) 기준으로 구매 고객의 유입 경로를 봅니다.")} />
       <AnalyticsNav path="/admin/analytics/traffic" days={days} t={t} />
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t("Paid orders", "결제 주문")} value={totalOrders} hint={formatMoney(totalRevenue, cur, lang)} />
-        <StatCard label={t("Orders via deep links", "딥링크 경유 결제")} value={linkOrders} hint={t(`${totalOrders ? ((linkOrders / totalOrders) * 100).toFixed(1) : 0}% of orders · ${formatMoney(linkRevenue, cur, lang)}`, `전체의 ${totalOrders ? ((linkOrders / totalOrders) * 100).toFixed(1) : 0}% · ${formatMoney(linkRevenue, cur, lang)}`)} tone="good" />
-        <StatCard label={t("Deep-link clicks", "딥링크 클릭")} value={clickTotals.clicks.toLocaleString()} hint={t(`${clickTotals.visitors} unique visitors/day`, `일별 순방문 ${clickTotals.visitors}`)} />
+        <StatCard label={t("Orders via sales links", "판매 링크 경유 결제")} value={linkOrders} hint={t(`${totalOrders ? ((linkOrders / totalOrders) * 100).toFixed(1) : 0}% of orders · ${formatMoney(linkRevenue, cur, lang)}`, `전체의 ${totalOrders ? ((linkOrders / totalOrders) * 100).toFixed(1) : 0}% · ${formatMoney(linkRevenue, cur, lang)}`)} tone="good" />
+        <StatCard label={t("Link clicks", "판매 링크 클릭")} value={clickTotals.clicks.toLocaleString()} hint={t(`${clickTotals.visitors} unique visitors/day`, `일별 순방문 ${clickTotals.visitors}`)} />
         <StatCard label={t("Click → order", "클릭 → 결제 전환")} value={clickTotals.clicks ? `${((linkOrders / clickTotals.clicks) * 100).toFixed(1)}%` : "—"} hint={t("Clicks recorded in this period", "기간 내 기록된 클릭 기준")} />
       </div>
 
@@ -94,8 +94,8 @@ export default async function AdminTrafficAnalytics({ searchParams }: { searchPa
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1fr_1.4fr]">
-        <Panel title={t("Deep-link clicks by source", "소스별 딥링크 클릭")} description={t("Clicks recorded in the period. Unique visitors are counted per day.", "기간 내 기록된 클릭입니다. 순방문자는 일 단위로 집계됩니다.")} bodyClass="p-0">
-          <DataTable head={[t("Source", "소스"), t("Links", "링크"), t("Clicks", "클릭"), t("Unique visitors", "순방문")]} empty={<EmptyState title={t("No deep links", "딥링크가 없습니다")} />}>
+        <Panel title={t("Link clicks by source", "소스별 판매 링크 클릭")} description={t("Clicks recorded in the period. Unique visitors are counted per day.", "기간 내 기록된 클릭입니다. 순방문자는 일 단위로 집계됩니다.")} bodyClass="p-0">
+          <DataTable head={[t("Source", "소스"), t("Links", "링크"), t("Clicks", "클릭"), t("Unique visitors", "순방문")]} empty={<EmptyState title={t("No sales links", "판매 링크가 없습니다")} />}>
             {clicksBySource.map((r) => (
               <tr key={r.source}>
                 <td><Link href={`/admin/links?source=${encodeURIComponent(r.source)}`} className="font-medium hover:underline"><code className="text-xs">{r.source}</code></Link></td>
@@ -106,8 +106,8 @@ export default async function AdminTrafficAnalytics({ searchParams }: { searchPa
             ))}
           </DataTable>
         </Panel>
-        <Panel title={t("Top deep links by revenue", "매출 상위 딥링크")} bodyClass="p-0" actions={<Link href="/admin/links" className="rc-btn rc-btn-outline rc-btn-sm">{t("All links", "전체 링크")}</Link>}>
-          <DataTable head={[t("Link", "링크"), t("Seller", "판매자"), t("Paid orders", "결제"), t("Revenue", "매출"), t("Lifetime clicks", "누적 클릭")]} empty={<EmptyState title={t("No orders via deep links in this period", "기간 내 딥링크 경유 결제가 없습니다")} />}>
+        <Panel title={t("Top sales links by revenue", "매출 상위 판매 링크")} bodyClass="p-0" actions={<Link href="/admin/links" className="rc-btn rc-btn-outline rc-btn-sm">{t("All links", "전체 링크")}</Link>}>
+          <DataTable head={[t("Link", "링크"), t("Seller", "판매자"), t("Paid orders", "결제"), t("Revenue", "매출"), t("Lifetime clicks", "누적 클릭")]} empty={<EmptyState title={t("No orders via sales links in this period", "기간 내 판매 링크 경유 결제가 없습니다")} />}>
             {topLinks.map((l) => (
               <tr key={l.id}>
                 <td className="max-w-[240px]"><div className="truncate font-medium">{l.name}</div><div className="text-[11px] text-[#8a8d96]">/l/{l.code} · {l.source}</div></td>

@@ -46,7 +46,7 @@ export default async function AdminSettlementDetail({ params }: { params: Promis
       <PageHeader
         title={`${x.displayName} · ${t("Settlement", "정산서")}`}
         description={title}
-        crumbs={[{ href: "/admin/settlements", label: t("Settlements", "정산 관리") }, { label: title }]}
+        crumbs={[{ href: "/admin/settlements", label: t("Seller payouts", "판매자 정산") }, { label: title }]}
         actions={
           <>
             <StatusBadge map={settlementStatus} value={st.status} lang={lang} />
@@ -58,9 +58,11 @@ export default async function AdminSettlementDetail({ params }: { params: Promis
       {!adjustment && refundedAfter.length > 0 && <div className="mb-4"><Notice tone="warn">{t(`${refundedAfter.length} order(s) in this batch were refunded after payout. The deduction is recorded as a separate settlement row and applied to the next payout.`, `이 정산서의 주문 ${refundedAfter.length}건이 지급 이후 환불되었습니다. 차감액은 별도 정산 항목으로 기록되어 다음 정산에서 적용됩니다.`)}</Notice></div>}
       {st.status === "cancelled" && <div className="mb-4"><Notice>{t("This settlement was cancelled. Its orders were released back to the unsettled pool.", "취소된 정산서입니다. 포함되었던 주문은 미정산 상태로 돌아갔습니다.")}</Notice></div>}
       <div className="grid gap-3 sm:grid-cols-3">
-        <StatCard label={adjustment ? t("Refunded sale", "환불된 판매액") : t("Gross sales", "판매액")} value={m(st.grossCents)} hint={adjustment ? t("Deducted from the next payout", "다음 정산에서 차감") : t(`${st.orderCount} orders`, `주문 ${st.orderCount}건`)} />
-        <StatCard label={t("Commission", "수수료")} value={m(-st.commissionCents)} />
-        <StatCard label={t("Net payout", "지급액")} value={m(st.netCents)} tone="good" />
+        {/* A cancelled batch keeps its figures as a record, but they are labelled as what it WAS: its orders
+            were released and nothing is payable, so showing them as live totals next to "0 orders" misled. */}
+        <StatCard label={adjustment ? t("Refunded sale", "환불된 판매액") : st.status === "cancelled" ? t("Gross sales (before cancel)", "판매액 (취소 전)") : t("Gross sales", "판매액")} value={m(st.grossCents)} hint={adjustment ? t("Deducted from the next payout", "다음 정산에서 차감") : st.status === "cancelled" ? t(`Was ${st.orderCount} orders — released`, `취소 전 ${st.orderCount}건 — 해제됨`) : t(`${st.orderCount} orders`, `주문 ${st.orderCount}건`)} />
+        <StatCard label={st.status === "cancelled" ? t("Commission (before cancel)", "수수료 (취소 전)") : t("Commission", "수수료")} value={m(-st.commissionCents)} />
+        <StatCard label={st.status === "cancelled" ? t("Payout (cancelled)", "지급액 (취소됨)") : t("Net payout", "지급액")} value={st.status === "cancelled" ? m(0) : m(st.netCents)} hint={st.status === "cancelled" ? t(`Was ${m(st.netCents)}`, `취소 전 ${m(st.netCents)}`) : undefined} tone={st.status === "cancelled" ? undefined : "good"} />
       </div>
       <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_360px]">
         <div className="grid min-w-0 content-start gap-4">

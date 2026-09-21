@@ -16,7 +16,7 @@ import { ActionButton } from "@/components/common/action-form";
 import { CopyButton } from "@/components/console/copy-button";
 import { adminToggleLink } from "./actions";
 
-export const metadata = { title: "Deep links" };
+export const metadata = { title: "Sales links" };
 
 export default async function AdminLinks({ searchParams }: { searchParams: Promise<SP> }) {
   await requireAdmin();
@@ -68,7 +68,7 @@ export default async function AdminLinks({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <PageHeader title={t("Deep links", "딥링크 현황")} description={t("Trackable selling links created by sellers. Clicks, paid orders and revenue per link.", "판매자가 만든 추적 링크 전체 현황입니다. 링크별 클릭, 결제 주문, 매출을 확인합니다.")} actions={<Link href="/admin/analytics/traffic" className="rc-btn rc-btn-outline">{t("Traffic report", "유입 경로 통계")}</Link>} />
+      <PageHeader title={t("Sales links", "판매 링크")} description={t("Trackable selling links created by sellers. Clicks, paid orders and revenue per link.", "판매자가 만든 추적 링크 전체 현황입니다. 링크별 클릭, 결제 주문, 매출을 확인합니다.")} actions={<Link href="/admin/analytics/traffic" className="rc-btn rc-btn-outline">{t("Traffic report", "유입 경로 통계")}</Link>} />
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t("Links", "링크 수")} value={totals.links} hint={t(`${totals.active} active`, `활성 ${totals.active}`)} />
         <StatCard label={t("Total clicks", "총 클릭")} value={totals.clicks.toLocaleString()} />
@@ -87,7 +87,7 @@ export default async function AdminLinks({ searchParams }: { searchParams: Promi
       <Panel title={<>{t("Links", "링크")} <span className="ml-1 text-[#8a8d96]">{total}</span></>} description={t("Sorted by clicks", "클릭 많은 순")} bodyClass="p-0">
         <DataTable
           head={[t("Link", "링크"), t("Seller · product", "판매자 · 상품"), t("Tracking", "유입 추적"), t("State", "상태"), t("Clicks", "클릭"), t("Paid orders", "결제"), t("Conversion", "전환율"), t("Revenue", "매출"), t("Created", "생성일"), ""]}
-          empty={<EmptyState title={t("No deep links match these filters", "조건에 맞는 딥링크가 없습니다")} />}
+          empty={<EmptyState title={t("No sales links match these filters", "조건에 맞는 판매 링크가 없습니다")} />}
           footer={<Pagination total={total} page={page} size={size} />}
         >
           {rows.map(({ l, titleEn, titleKo, productStatus, seller }) => {
