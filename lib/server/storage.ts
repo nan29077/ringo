@@ -10,7 +10,7 @@ export type StoredObject = { body: ReadableStream<Uint8Array>; size?: number; co
 export interface StorageDriver {
   name: "local" | "s3";
   put(key: string, data: Buffer, contentType: string): Promise<void>;
-  get(key: string): Promise<StoredObject | null>;
+  get(key: string, range?: { start: number; end: number }): Promise<StoredObject | null>;
   remove(key: string): Promise<void>;
   /** Short-lived direct URL (S3). Local driver returns null → stream through the app. */
   signedUrl(key: string, filename: string, seconds: number, opts?: { inline?: boolean; contentType?: string }): Promise<string | null>;
@@ -30,11 +30,11 @@ const local: StorageDriver = {
     await fsp.mkdir(path.dirname(file), { recursive: true });
     await fsp.writeFile(file, data);
   },
-  async get(key) {
+  async get(key, range) {
     const file = safeLocalPath(key);
     try {
       const stat = await fsp.stat(file);
-      return { body: Readable.toWeb(fs.createReadStream(file)) as ReadableStream<Uint8Array>, size: stat.size };
+      return { body: Readable.toWeb(fs.createReadStream(file, range ? { start: range.start, end: range.end } : undefined)) as ReadableStream<Uint8Array>, size: stat.size };
     } catch {
       return null;
     }

@@ -1,12 +1,13 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { shareCard, shareCopy } from "@/lib/share-card";
 import { ArrowUpRight, BookOpen, Camera, Check, Download, Heart, LayoutGrid, Link2, Megaphone, Music, Package, Palette, Search, ShieldCheck, ShoppingBag, Sparkles } from "lucide-react";
 import { getViewer } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
 import { getSettings } from "@/lib/server/settings";
 import { mediaUrl } from "@/lib/server/storage";
-import { one, type SP } from "@/lib/server/list";
+import { one, safePage, type SP } from "@/lib/server/list";
 import { activeBanners, activeCategories, categoryCounts, highlightedSellers, listCatalog, pick, wishlistIds } from "@/lib/server/storefront";
 import { formatMoney, n } from "@/lib/i18n";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -17,7 +18,8 @@ import { SortSelect } from "@/components/store/sort-select";
 export const metadata: Metadata = {
   title: { absolute: "Ringo — Digital goods by independent creators" },
   description: "Discover eBooks, courses, design resources, photography presets and creative services from independent creators on Ringo.",
-  openGraph: { title: "Ringo — Digital goods by independent creators", images: ["/images/banner-books-v2.webp"] },
+  openGraph: { type: "website", siteName: "Ringo", title: shareCopy.title, description: shareCopy.description, images: [shareCard] },
+  twitter: { card: "summary_large_image", title: shareCopy.title, description: shareCopy.description, images: [shareCard.url] },
 };
 
 const PAGE_SIZE = 24;
@@ -51,7 +53,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<SP>
   const db = await getDb();
   const q = one(sp, "q").trim().slice(0, 80);
   const categoryParam = one(sp, "category");
-  const page = Math.max(1, Number(one(sp, "page")) || 1);
+  const page = safePage(one(sp, "page"));
   const [categories, counts, banners, sellers, settings] = await Promise.all([activeCategories(db), categoryCounts(db), activeBanners(db), highlightedSellers(db, 3), getSettings(db)]);
   const category = categories.some((c) => c.id === categoryParam) ? categoryParam : "";
   const filtering = !!(q || category || page > 1);

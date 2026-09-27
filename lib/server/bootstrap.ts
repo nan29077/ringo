@@ -47,5 +47,7 @@ export async function bootstrapDatabase(db: DB) {
       const { seedDemoData } = await import("./seed-demo");
       await seedDemoData(db);
     }
+    const { repairDemoAssets } = await import("./seed-demo");
+    await repairDemoAssets(db);
   }
 }

@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import * as s from "@/db/schema";
 import type { DB } from "./db";
 import { hashPassword } from "./password";
@@ -17,6 +17,8 @@ export const demoAccounts = {
 };
 
 const day = 86400000;
+const demoAssetNoticeEn = "Demo item: the download is a sample PDF for testing, not the finished advertised content.";
+const demoAssetNoticeKo = "데모 상품: 다운로드 파일은 기능 확인용 샘플 PDF이며 실제 완성 콘텐츠가 아닙니다.";
 
 const reviewBodies = [
   "Exactly what I needed — clear, practical and easy to apply the same week.",
@@ -58,6 +60,39 @@ async function seedAsset(db: DB, productId: string, filename: string, title: str
   return row;
 }
 
+/** Repair older local demo databases whose listings predate downloadable demo assets. */
+export async function repairDemoAssets(db: DB) {
+  const owners = await db.select({ id: s.users.id }).from(s.users)
+    .where(inArray(s.users.email, [demoAccounts.seller, demoAccounts.seller2]));
+  if (!owners.length) return;
+  const demoSellers = await db.select({ id: s.sellers.id }).from(s.sellers)
+    .where(inArray(s.sellers.userId, owners.map((owner) => owner.id)));
+  if (!demoSellers.length) return;
+  const products = await db.select().from(s.products)
+    .where(inArray(s.products.sellerId, demoSellers.map((seller) => seller.id)));
+  const samples = new Map(sampleProducts.map((product) => [product.slug, product]));
+  for (const product of products) {
+    const sample = samples.get(product.slug);
+    if (!sample || !["download", "collection", "course"].includes(product.deliveryType)) continue;
+    const [existing] = await db.select({ id: s.productAssets.id, filename: s.productAssets.filename }).from(s.productAssets)
+      .where(eq(s.productAssets.productId, product.id)).limit(1);
+    if (existing && !existing.filename.endsWith("-demo-sample.pdf")) continue;
+    if (existing && product.descriptionEn?.includes(demoAssetNoticeEn)) continue;
+    const asset = existing ?? await seedAsset(db, product.id, `${product.slug}-demo-sample.pdf`, product.titleEn,
+      ["Ringo demo sample. This PDF is a placeholder for the seller's final files.", sample.details.slice(0, 90)]);
+    if (!existing && product.deliveryType === "course" && product.lessons.length) {
+      await db.update(s.products).set({
+        lessons: product.lessons.map((lesson, index) => index === 0 ? { ...lesson, assetId: asset.id } : lesson),
+      }).where(eq(s.products.id, product.id));
+    }
+    await db.update(s.products).set({
+      formatLabel: product.deliveryType === "course" ? `${product.lessons.length} lessons · Demo notes + PDF` : "Demo sample PDF",
+      descriptionEn: [product.descriptionEn, demoAssetNoticeEn].filter(Boolean).join("\n\n"),
+      descriptionKo: [product.descriptionKo, demoAssetNoticeKo].filter(Boolean).join("\n\n"),
+    }).where(eq(s.products.id, product.id));
+  }
+}
+
 /** Local development sample data. Never runs in production unless RINGO_DEMO_SEED=true. */
 export async function seedDemoData(db: DB) {
   const passwordHash = await hashPassword(DEMO_PASSWORD);
@@ -93,9 +128,9 @@ export async function seedDemoData(db: DB) {
       titleKo: p.ko,
       summaryEn: p.details.split(". ")[0] + ".",
       summaryKo: p.detailsKo.split(". ")[0] + ".",
-      descriptionEn: p.details,
-      descriptionKo: p.detailsKo,
-      formatLabel: p.format,
+      descriptionEn: [p.details, ["download", "collection", "course"].includes(delivery) ? demoAssetNoticeEn : null].filter(Boolean).join("\n\n"),
+      descriptionKo: [p.detailsKo, ["download", "collection", "course"].includes(delivery) ? demoAssetNoticeKo : null].filter(Boolean).join("\n\n"),
+      formatLabel: delivery === "course" ? "4 lessons · Demo notes + PDF" : ["download", "collection"].includes(delivery) ? "Demo sample PDF" : p.format,
       priceCents: Math.round(p.price * 100),
       status: "published",
       featured: i < 4,
@@ -158,7 +193,7 @@ export async function seedDemoData(db: DB) {
     const at = new Date(now - ago * day);
     const service = product.deliveryType === "service";
     const [order] = await db.insert(s.orders).values({
-      orderNo: `RG-DEMO-${++n}`, buyerId: b.id, productId: product.id, sellerId: product.sellerId, productTitle: product.titleEn,
+      orderNo: `RG-DEMO-${++n}`, buyerId: b.id, productId: product.id, sellerId: product.sellerId, productTitle: product.titleEn, productTitleKo: product.titleKo,
       status: "paid", currency: "USD", subtotalCents: product.priceCents, totalCents: product.priceCents, commissionBps: bps,
       commissionCents: commission, sellerNetCents: product.priceCents - commission, buyerEmail: b.email, buyerName: b.name,
       source: pid === "p1" ? "instagram" : "storefront", linkId: pid === "p1" ? link.id : null, campaign: pid === "p1" ? "creative-start" : null,

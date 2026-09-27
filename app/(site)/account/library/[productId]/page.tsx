@@ -77,7 +77,7 @@ export default async function LibraryItem({ params }: { params: Promise<{ produc
                 return (
                   <li key={i} className={i === nextLesson ? "bg-[#fffaf7]" : ""}>
                     <div className="sf-row">
-                      <LessonToggle productId={p.id} index={i} done={isDone} title={l.title} />
+                      <LessonToggle productId={p.id} lessonId={l.id ?? `legacy:${i}`} done={isDone} title={l.title} />
                       <span className="w-6 text-sm text-[#9aa38c]" aria-hidden>{String(i + 1).padStart(2, "0")}</span>
                       <div className="min-w-0 flex-1">
                         <p className={`font-medium ${isDone ? "text-[#7a7e73] line-through decoration-[#c9ccc0]" : "text-[#20211f]"}`}>{l.title}</p>

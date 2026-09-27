@@ -53,7 +53,7 @@ export async function SiteHeader() {
               <Link href="/account" className="inline-flex h-10 items-center gap-2 rounded-[7px] border border-[#dcded7] bg-white px-3 text-sm text-[#252821] sm:px-4"><User size={16} aria-hidden /><span className="max-sm:sr-only">{t("My account", "내 계정")}</span></Link>
             </>
           ) : (
-            <Link href="/login" className="inline-flex h-10 items-center gap-2 rounded-[7px] border border-[#dcded7] bg-white px-4 text-sm text-[#252821]">{t("Log in", "로그인")}<ArrowUpRight size={15} aria-hidden /></Link>
+            <Link href="/login" className="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[7px] border border-[#dcded7] bg-white px-2.5 text-sm text-[#252821] sm:px-4">{t("Log in", "로그인")}<ArrowUpRight size={15} aria-hidden /></Link>
           )}
         </div>
       </header>

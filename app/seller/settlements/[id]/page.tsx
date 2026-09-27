@@ -45,7 +45,7 @@ export default async function SellerSettlementDetail({ params }: { params: Promi
             {orders.map((o) => (
               <tr key={o.id}>
                 <td className="whitespace-nowrap"><Link href={`/seller/orders/${o.id}`} className="font-semibold text-[#2f4ac2] hover:underline">{o.orderNo}</Link></td>
-                <td className="max-w-[240px] truncate">{o.productTitle}</td>
+                <td className="max-w-[240px] truncate">{lang === "ko" ? o.productTitleKo || o.productTitle : o.productTitle}</td>
                 <td className="whitespace-nowrap text-xs">{formatDate(o.paidAt, lang)}</td>
                 <td className="whitespace-nowrap">{m(o.totalCents)}</td>
                 <td className="whitespace-nowrap text-[#6b6e78]">-{m(o.commissionCents)}</td>

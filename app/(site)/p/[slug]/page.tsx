@@ -9,7 +9,7 @@ import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
 import { getSettings } from "@/lib/server/settings";
 import { mediaUrl } from "@/lib/server/storage";
-import { appOrigin } from "@/lib/server/request";
+import { requestOrigin } from "@/lib/server/request";
 import { one, type SP } from "@/lib/server/list";
 import { activeEntitlement, isPurchasable, listCatalog, pick, productBySlug, publicName, wishlistIds } from "@/lib/server/storefront";
 import { bytes, formatDate, formatMoney, n } from "@/lib/i18n";
@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = row.product;
   const title = p.seoTitle || pick(lang, p.titleEn, p.titleKo);
   const description = (p.seoDescription || pick(lang, p.summaryEn, p.summaryKo) || pick(lang, p.descriptionEn, p.descriptionKo)).replace(/\s+/g, " ").slice(0, 160);
-  const origin = await appOrigin();
+  const origin = await requestOrigin();
   const image = new URL(mediaUrl(p.coverKey), origin).toString();
   return {
     title,

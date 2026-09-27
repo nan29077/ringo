@@ -92,7 +92,7 @@ export default async function SellerOrderDetail({ params }: { params: Promise<{ 
               <img src={mediaUrl(product.coverKey)} alt="" className="rc-thumb !size-16" />
               <div className="min-w-0">
                 <Link href={`/seller/products/${product.id}`} className="font-semibold hover:underline">{lang === "ko" ? product.titleKo : product.titleEn}</Link>
-                <div className="mt-1 flex items-center gap-2 text-xs text-[#8a8d96]"><StatusBadge map={deliveryType} value={product.deliveryType} lang={lang} />{o.productTitle !== product.titleEn && <span>{t("Ordered as", "주문 당시")}: {o.productTitle}</span>}</div>
+                <div className="mt-1 flex items-center gap-2 text-xs text-[#8a8d96]"><StatusBadge map={deliveryType} value={product.deliveryType} lang={lang} />{(lang === "ko" ? o.productTitleKo || o.productTitle : o.productTitle) !== (lang === "ko" ? product.titleKo : product.titleEn) && <span>{t("Ordered as", "주문 당시")}: {lang === "ko" ? o.productTitleKo || o.productTitle : o.productTitle}</span>}</div>
               </div>
             </div>
           </Panel>

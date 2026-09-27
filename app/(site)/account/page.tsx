@@ -89,7 +89,7 @@ export default async function AccountHome() {
               {orders.map((o) => (
                 <li key={o.id} className="sf-row">
                   <div className="min-w-0 flex-1">
-                    <Link href={`/account/orders/${o.id}`} className="block truncate font-semibold text-[#20211f] hover:underline">{o.productTitle}</Link>
+                    <Link href={`/account/orders/${o.id}`} className="block truncate font-semibold text-[#20211f] hover:underline">{lang === "ko" ? o.productTitleKo || o.productTitle : o.productTitle}</Link>
                     <p className="text-[13px] text-[#6b7065]">{o.orderNo} · {formatDate(o.createdAt, lang)}</p>
                   </div>
                   <StatusBadge map={orderStatus} value={o.status} lang={lang} />

@@ -6,7 +6,7 @@ import type { Lang } from "../i18n";
 import { logError } from "./audit";
 import { getDb } from "./db";
 
-export type ActionResult = { ok: true; message?: string; redirect?: string; data?: unknown } | { ok: false; error: string };
+export type ActionResult = { ok: true; message?: string; redirect?: string; data?: unknown } | { ok: false; error: string; field?: string };
 
 const messages: Record<string, [string, string]> = {
   not_found: ["Not found or no permission.", "대상을 찾을 수 없거나 권한이 없습니다."],
@@ -51,6 +51,8 @@ const messages: Record<string, [string, string]> = {
   compare_at_too_low: ["The list (compare-at) price must be higher than the sale price.", "정가는 판매가보다 커야 합니다."],
   delivery_type_locked: ["The delivery type of a product that was approved or sold cannot be changed. Create a new product instead.", "심사를 통과했거나 판매된 상품의 제공 방식(카테고리 유형)은 변경할 수 없습니다. 새 상품으로 등록하세요."],
   lessons_required: ["Add at least one lesson to the course.", "강의에는 최소 1개의 레슨이 필요합니다."],
+  lesson_content_required: ["Add a video, note or valid file to every lesson before publishing.", "판매 전에 각 레슨에 영상, 노트 또는 연결된 파일을 추가하세요."],
+  invalid_lessons: ["Lesson identifiers are invalid. Reload the form and try again.", "레슨 정보가 올바르지 않습니다. 화면을 새로고침한 뒤 다시 시도하세요."],
   last_file_on_sale: ["A product on sale must keep at least one file. Upload the replacement first, then delete this one.", "판매 중인 상품에는 파일이 최소 1개 있어야 합니다. 새 파일을 먼저 업로드한 뒤 삭제하세요."],
   code_taken: ["This code is already in use. Enter a different one.", "이미 사용 중인 코드입니다. 다른 코드를 입력하세요."],
   coupon_end_past: ["The end date has already passed. Choose a future date, or turn the coupon off instead.", "종료일이 이미 지났습니다. 앞으로의 날짜를 고르거나, 쿠폰 사용을 끄세요."],
@@ -177,6 +179,7 @@ export async function run(fn: () => Promise<ActionResult | void>, fallbackLang?:
       const en = fieldLabel(key, "en"), ko = fieldLabel(key, "ko");
       return {
         ok: false,
+        field: key || undefined,
         error: t(en ? `Check the "${en}" field: ${zodMessageEn(issue)}` : zodMessageEn(issue), ko ? `"${ko}" 항목을 확인하세요: ${zodMessageKo(issue)}` : zodMessageKo(issue)),
       };
     }

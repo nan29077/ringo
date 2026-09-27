@@ -6,8 +6,15 @@ import { addZonedDays, parseZonedInput, startOfZonedDaysAgo } from "@/lib/time";
 export type SP = Record<string, string | string[] | undefined>;
 export const one = (sp: SP, k: string) => (Array.isArray(sp[k]) ? sp[k]![0] : sp[k]) ?? "";
 
+export function safePage(raw: string) {
+  // Keep offsets within PostgreSQL's integer range, including for malformed shared links.
+  if (!/^[1-9]\d{0,5}$/.test(raw)) return 1;
+  const page = Number(raw);
+  return Number.isSafeInteger(page) && page <= 100000 ? page : 1;
+}
+
 export function listParams(sp: SP, defaultSize = 20) {
-  const page = Math.max(1, Number(one(sp, "page")) || 1);
+  const page = safePage(one(sp, "page"));
   const size = [10, 20, 50, 100].includes(Number(one(sp, "size"))) ? Number(one(sp, "size")) : defaultSize;
   return { page, size, offset: (page - 1) * size, q: one(sp, "q").trim().slice(0, 100) };
 }
@@ -53,14 +60,11 @@ export function csvResponse(filename: string, rows: unknown[][]) {
   return new Response(body, { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="${filename}"` } });
 }
 
-/**
- * Orders keep the English product title only (it is frozen at purchase time), so a search typed in
- * Korean found nothing. This also matches the product's Korean title, through a subquery so every
- * order list can use it without adding a join.
- */
+/** Match either title saved at purchase time, plus the product's current Korean title. */
 export function orderProductTitleMatch(pattern: string) {
   return or(
     ilike(s.orders.productTitle, pattern),
+    ilike(s.orders.productTitleKo, pattern),
     inArray(s.orders.productId, sql`(select ${s.products.id} from ${s.products} where ${s.products.titleKo} ilike ${pattern})`),
   );
 }

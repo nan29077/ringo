@@ -11,7 +11,7 @@ import { expireOrderIfStale } from "@/lib/server/commerce";
 import { mediaUrl } from "@/lib/server/storage";
 import { getProvider } from "@/lib/server/payments";
 import { one, type SP } from "@/lib/server/list";
-import { isUuid, pick } from "@/lib/server/storefront";
+import { isUuid } from "@/lib/server/storefront";
 import { bytes, formatDate, formatMoney, type T } from "@/lib/i18n";
 import { fulfillmentStatus, orderStatus, refundStatus } from "@/lib/status";
 import { StatusBadge } from "@/components/console/status-badge";
@@ -84,7 +84,7 @@ export default async function OrderDetail({ params, searchParams }: { params: Pr
   const visibleEvents = events.map((e) => ({ ...e, label: eventLabel(e.type, t) })).filter((e) => e.label);
   const justPaid = one(sp, "paid") === "1";
   const paidOrRefunded = o.status === "paid" || o.status === "refunded";
-  const title = pick(lang, p.titleEn, p.titleKo) || o.productTitle;
+  const title = lang === "ko" ? o.productTitleKo || p.titleKo || o.productTitle : o.productTitle;
 
   return (
     <>

@@ -73,7 +73,7 @@ export default async function AdminSettlementDetail({ params }: { params: Promis
                   <td className="whitespace-nowrap"><Link href={`/admin/orders/${o.id}`} className="font-semibold text-[#2f4ac2] hover:underline">{o.orderNo}</Link></td>
                   <td><StatusBadge map={orderStatus} value={o.status} lang={lang} /></td>
                   <td className="text-xs">{o.buyerName}</td>
-                  <td className="max-w-[240px] truncate">{o.productTitle}</td>
+                  <td className="max-w-[240px] truncate">{lang === "ko" ? o.productTitleKo || o.productTitle : o.productTitle}</td>
                   <td className="whitespace-nowrap text-xs">{formatDate(o.paidAt, lang)}</td>
                   <td className="whitespace-nowrap">{m(o.totalCents)}</td>
                   <td className="whitespace-nowrap text-[#6b6e78]">-{m(o.commissionCents)} <span className="text-[11px]">({(o.commissionBps / 100).toFixed(o.commissionBps % 100 ? 2 : 0)}%)</span></td>

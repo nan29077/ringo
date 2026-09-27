@@ -8,7 +8,8 @@ import { getViewer } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
 import { getT } from "@/lib/server/i18n-server";
 import { mediaUrl } from "@/lib/server/storage";
-import { appOrigin } from "@/lib/server/request";
+import { requestOrigin } from "@/lib/server/request";
+import { shareCard } from "@/lib/share-card";
 import { one, type SP } from "@/lib/server/list";
 import { listCatalog, wishlistIds } from "@/lib/server/storefront";
 import { formatDate } from "@/lib/i18n";
@@ -28,13 +29,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const seller = await activeSeller(slug);
   if (!seller) return { title: "Store not found", robots: { index: false } };
-  const origin = await appOrigin();
+  const origin = await requestOrigin();
   const description = (seller.bio || `Digital products by ${seller.displayName} on Ringo.`).slice(0, 160);
   return {
     title: seller.displayName,
     description,
     alternates: { canonical: `${origin}/s/${seller.slug}` },
-    openGraph: { title: `${seller.displayName} on Ringo`, description, images: seller.avatarKey ? [new URL(mediaUrl(seller.avatarKey), origin).toString()] : undefined },
+    openGraph: { title: `${seller.displayName} on Ringo`, description, images: seller.avatarKey ? [new URL(mediaUrl(seller.avatarKey), origin).toString()] : [shareCard] },
+    twitter: { card: "summary_large_image", title: `${seller.displayName} on Ringo`, description, images: seller.avatarKey ? [new URL(mediaUrl(seller.avatarKey), origin).toString()] : [shareCard.url] },
   };
 }
 

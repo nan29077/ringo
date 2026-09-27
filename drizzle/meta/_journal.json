@@ -15,6 +15,27 @@
       "when": 1789823500771,
       "tag": "0001_policy_flags",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790458305897,
+      "tag": "0002_youthful_squadron_supreme",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790458818296,
+      "tag": "0003_adorable_slapstick",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790468507188,
+      "tag": "0004_course_content_repair",
+      "breakpoints": true
     }
   ]
 }

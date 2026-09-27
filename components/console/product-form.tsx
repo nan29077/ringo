@@ -19,9 +19,9 @@ const presetUrl = (key: string | null | undefined) => {
   return "/images/book.webp";
 };
 
-type LessonRow = { key: number; title: string; minutes: string; preview: boolean; assetId: string; videoUrl: string; body: string };
+type LessonRow = { key: number; id: string; title: string; minutes: string; preview: boolean; assetId: string; videoUrl: string; body: string };
 let seq = 0;
-const toRow = (l: Partial<Lesson>): LessonRow => ({ key: ++seq, title: l.title ?? "", minutes: l.minutes ? String(l.minutes) : "", preview: !!l.preview, assetId: l.assetId ?? "", videoUrl: l.videoUrl ?? "", body: l.body ?? "" });
+const toRow = (l: Partial<Lesson>, index?: number): LessonRow => ({ key: ++seq, id: l.id ?? (index === undefined ? crypto.randomUUID() : `legacy:${index}`), title: l.title ?? "", minutes: l.minutes ? String(l.minutes) : "", preview: !!l.preview, assetId: l.assetId ?? "", videoUrl: l.videoUrl ?? "", body: l.body ?? "" });
 
 function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
@@ -66,7 +66,7 @@ export function ProductForm({ action, categories, product, assets = [], sellers,
   const category = categories.find((c) => c.id === categoryId);
   const type: DeliveryType = category?.deliveryType ?? product?.deliveryType ?? "download";
   const lessonsJson = useMemo(
-    () => JSON.stringify(lessons.filter((l) => l.title.trim()).map((l) => ({ title: l.title.trim(), minutes: l.minutes ? Number(l.minutes) : null, preview: l.preview, assetId: l.assetId || null, videoUrl: l.videoUrl.trim() || null, body: l.body.trim() || null }))),
+    () => JSON.stringify(lessons.filter((l) => l.title.trim()).map((l) => ({ id: l.id, title: l.title.trim(), minutes: l.minutes ? Number(l.minutes) : null, preview: l.preview, assetId: l.assetId || null, videoUrl: l.videoUrl.trim() || null, body: l.body.trim() || null }))),
     [lessons],
   );
   const update = (key: number, patch: Partial<LessonRow>) => setLessons((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -82,7 +82,7 @@ export function ProductForm({ action, categories, product, assets = [], sellers,
   const typeLabel = deliveryTypeLabels[type];
 
   return (
-    <ActionForm action={action} className="grid gap-4">
+    <ActionForm action={action} className="grid gap-4" warnUnsaved>
       {product && <input type="hidden" name="id" value={product.id} />}
       <input type="hidden" name="lessons" value={type === "course" ? lessonsJson : ""} />
 

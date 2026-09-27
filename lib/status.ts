@@ -19,6 +19,7 @@ export const refundStatus: Record<string, Entry> = {
   none: m("—", "—", "gray"),
   requested: m("Refund requested", "환불 요청", "red"),
   rejected: m("Refund rejected", "환불 거절", "gray"),
+  processing: m("Refund processing", "환불 처리 중", "amber"),
   refunded: m("Refunded", "환불 완료", "gray"),
 };
 export const productStatus: Record<string, Entry> = {

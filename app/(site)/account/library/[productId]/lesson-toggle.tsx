@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useLang } from "@/components/common/lang-provider";
 import { setLessonDone } from "../../actions";
 
-export function LessonToggle({ productId, index, done, title }: { productId: string; index: number; done: boolean; title: string }) {
+export function LessonToggle({ productId, lessonId, done, title }: { productId: string; lessonId: string; done: boolean; title: string }) {
   const { t } = useLang();
   const router = useRouter();
   const [checked, setChecked] = useState(done);
@@ -21,7 +21,7 @@ export function LessonToggle({ productId, index, done, title }: { productId: str
         const next = e.target.checked;
         setChecked(next);
         start(async () => {
-          const r = await setLessonDone(productId, index, next);
+          const r = await setLessonDone(productId, lessonId, next);
           if (!r.ok) {
             setChecked(!next);
             toast.error(r.error);

@@ -56,7 +56,10 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
     refund_window: t(`refund window until ${formatDate(hold?.releaseAt, lang)}`, `환불 가능 기간 (${formatDate(hold?.releaseAt, lang)}까지)`),
   };
   const canDeliver = service && o.status === "paid" && ["pending", "in_progress", "delivered"].includes(o.fulfillmentStatus);
-  const succeeded = payments.find((p) => p.status === "succeeded");
+  const succeededPayments = payments.filter((p) => p.status === "succeeded");
+  const succeeded = succeededPayments[0];
+  const latePayment = !!succeeded && (o.status === "cancelled" || o.status === "expired");
+  const extraReceipt = !!succeeded && (o.status === "refunded" || (o.status === "paid" && succeededPayments.length > 1));
 
   return (
     <>
@@ -85,11 +88,14 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
         }
       />
 
-      {payments.some((p) => p.status === "succeeded") && o.status !== "paid" && o.status !== "refunded" && (
-        <div className="mb-4"><Notice tone="danger">{t("A payment succeeded while this order was not payable (late payment). Refund it in the provider console and note the refund reference in the admin memo.", "주문이 결제 불가 상태일 때 결제가 승인되었습니다(지연 결제). PG 관리자에서 환불한 뒤 관리자 메모에 환불 번호를 남기세요.")}</Notice></div>
+      {latePayment && (
+        <div className="mb-4"><Notice tone="danger">{t("A payment succeeded after this order closed. The buyer received no access. Refund this payment below, or record the refund after completing it in the provider console.", "주문 종료 후 결제가 승인되었지만 구매 권한은 발급되지 않았습니다. 아래에서 환불하거나 PG 관리자에서 환불한 뒤 수동 환불을 기록하세요.")}</Notice></div>
+      )}
+      {extraReceipt && (
+        <div className="mb-4"><Notice tone="danger">{t("An additional payment succeeded for this order. Refund the extra receipt below; the original purchase and access will remain unchanged.", "이 주문에 추가 결제 승인 내역이 있습니다. 아래에서 초과 결제를 환불하세요. 원래 구매와 이용 권한은 유지됩니다.")}</Notice></div>
       )}
 
-      {o.status === "paid" && o.refundStatus === "requested" && (
+      {o.status === "paid" && o.refundStatus === "requested" && !extraReceipt && (
         <Panel className="mb-4 !border-[#f7c9c7]" title={t("Refund requested", "환불 요청")} description={t("Approval refunds the full amount through the payment provider and revokes the buyer's access.", "승인하면 결제사를 통해 전액 환불되고 구매자의 이용 권한이 회수됩니다.")}>
           <p className="!mb-4 rounded-lg bg-[#fff3f2] px-4 py-3 text-sm text-[#a3302a]">{o.refundReason ?? "—"}</p>
           <div className="grid gap-4 lg:grid-cols-2">
@@ -117,7 +123,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#8a8d96]">
                   <StatusBadge map={deliveryType} value={product.deliveryType} lang={lang} />
                   <span>{t("Seller", "판매자")}: <Link href={`/admin/sellers/${seller.id}`} className="text-[#2f4ac2] hover:underline">{seller.displayName}</Link></span>
-                  {o.productTitle !== product.titleEn && <span>{t("Ordered as", "주문 당시")}: {o.productTitle}</span>}
+                  {(lang === "ko" ? o.productTitleKo || o.productTitle : o.productTitle) !== (lang === "ko" ? product.titleKo : product.titleEn) && <span>{t("Ordered as", "주문 당시")}: {lang === "ko" ? o.productTitleKo || o.productTitle : o.productTitle}</span>}
                 </div>
               </div>
             </div>
@@ -214,7 +220,7 @@ export default async function AdminOrderDetail({ params }: { params: Promise<{ i
             </Panel>
           )}
 
-          {o.status === "paid" && (
+          {(o.status === "paid" || latePayment || extraReceipt) && (
             <Panel title={t("Admin refund", "관리자 환불")} description={t("Refund the full amount without a buyer request, or record a refund already processed in the payment provider console.", "구매자 요청 없이 전액 환불하거나, PG 관리자 화면에서 이미 처리한 환불을 기록합니다.")}>
               {settlement?.status === "paid" && <div className="mb-4"><Notice tone="warn">{t(`This order was already paid out to the seller (settlement ${formatDate(settlement.paidAt ?? settlement.createdAt, lang)}). Refunding it records a deduction of ${money(o.sellerNetCents)} against the seller's next payout.`, `이 주문은 이미 판매자에게 정산 지급되었습니다 (${formatDate(settlement.paidAt ?? settlement.createdAt, lang)}). 환불하면 판매자 정산액 ${money(o.sellerNetCents)}이 다음 정산에서 차감됩니다.`)}</Notice></div>}
               {settlement?.status === "pending" && <div className="mb-4"><Notice>{t("This order is in a pending settlement batch. Refunding it removes it from the batch and updates the batch totals.", "이 주문은 지급 대기 중인 정산서에 포함되어 있습니다. 환불하면 정산서에서 제외되고 정산 금액이 다시 계산됩니다.")}</Notice></div>}

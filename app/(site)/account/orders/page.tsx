@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { pick } from "@/lib/server/storefront";
 import { and, count, desc, eq } from "drizzle-orm";
 import { Receipt } from "lucide-react";
 import * as s from "@/db/schema";
@@ -57,7 +56,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
               <li key={o.id} className="sf-row">
                 <img src={mediaUrl(coverKey)} alt="" className="sf-thumb" />
                 <div className="min-w-0 flex-1">
-                  <Link href={`/account/orders/${o.id}`} className="block font-semibold text-[#20211f] hover:underline">{pick(lang, titleEn, titleKo) || o.productTitle}</Link>
+                  <Link href={`/account/orders/${o.id}`} className="block font-semibold text-[#20211f] hover:underline">{lang === "ko" ? o.productTitleKo || titleKo || o.productTitle : o.productTitle || titleEn}</Link>
                   <p className="text-[13px] text-[#6b7065]">{o.orderNo} · {formatDate(o.createdAt, lang, true)}</p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     <StatusBadge map={orderStatus} value={o.status} lang={lang} />

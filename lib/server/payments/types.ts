@@ -16,6 +16,9 @@ export type WebhookResult = {
   type: string;
   paymentId?: string;
   providerRef?: string;
+  amountCents?: number;
+  currency?: string;
+  merchantId?: string;
   status: "succeeded" | "failed" | "cancelled" | "refunded" | "ignored";
   raw: unknown;
 };
@@ -28,7 +31,7 @@ export interface PaymentProvider {
   unavailableReason(): string | null;
   createCheckout(input: CheckoutInput): Promise<{ checkoutUrl: string; providerRef?: string }>;
   parseWebhook(request: Request, rawBody: string): Promise<WebhookResult>;
-  refund(input: { providerRef: string | null; amountCents: number; currency: string; reason: string }): Promise<{ providerRef?: string }>;
+  refund(input: { providerRef: string | null; amountCents: number; currency: string; reason: string; idempotencyKey: string }): Promise<{ providerRef?: string }>;
 }
 
 export class PaymentNotConfiguredError extends Error {}

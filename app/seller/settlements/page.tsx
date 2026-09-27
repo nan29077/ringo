@@ -81,7 +81,7 @@ export default async function SellerSettlements({ searchParams }: { searchParams
             return (
               <tr key={o.id}>
                 <td className="whitespace-nowrap"><Link href={`/seller/orders/${o.id}`} className="font-semibold text-[#2f4ac2] hover:underline">{o.orderNo}</Link></td>
-                <td className="max-w-[240px] truncate">{o.productTitle}</td>
+                <td className="max-w-[240px] truncate">{lang === "ko" ? o.productTitleKo || o.productTitle : o.productTitle}</td>
                 <td className="whitespace-nowrap text-xs">{formatDate(o.paidAt, lang)}</td>
                 <td className="whitespace-nowrap">{m(o.totalCents, o.currency)}</td>
                 <td className="whitespace-nowrap font-medium">{m(o.sellerNetCents, o.currency)}</td>

@@ -94,7 +94,7 @@ export default async function AdminMemberDetail({ params }: { params: Promise<{ 
               {orders.map(({ o, seller: store }) => (
                 <tr key={o.id}>
                   <td className="whitespace-nowrap"><Link href={`/admin/orders/${o.id}`} className="font-semibold text-[#2f4ac2] hover:underline">{o.orderNo}</Link><div className="text-[11px] text-[#8a8d96]">{formatDate(o.createdAt, lang, true)}</div></td>
-                  <td className="max-w-[260px]"><div className="truncate">{o.productTitle}</div><div className="text-[11px] text-[#8a8d96]">{store}</div></td>
+                  <td className="max-w-[260px]"><div className="truncate">{lang === "ko" ? o.productTitleKo || o.productTitle : o.productTitle}</div><div className="text-[11px] text-[#8a8d96]">{store}</div></td>
                   <td className="whitespace-nowrap">{formatMoney(o.totalCents, o.currency, lang)}</td>
                   <td><div className="flex flex-wrap gap-1"><StatusBadge map={orderStatus} value={o.status} lang={lang} />{o.status === "paid" && o.fulfillmentStatus !== "not_required" && <StatusBadge map={fulfillmentStatus} value={o.fulfillmentStatus} lang={lang} />}{o.refundStatus !== "none" && o.refundStatus !== o.status && <StatusBadge map={refundStatus} value={o.refundStatus} lang={lang} />}{o.source === "admin_grant" && <Badge tone="violet">{t("Manual grant", "수동 지급")}</Badge>}</div></td>
                 </tr>

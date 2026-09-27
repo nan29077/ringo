@@ -7,7 +7,7 @@ import { PaymentNotConfiguredError, type PaymentProvider } from "./types";
  * Until then the provider reports "not available" and checkout falls back to other enabled providers.
  *
  * Required environment (per provider, e.g. PEARPAY_*):
- *   <P>_API_BASE_URL, <P>_MERCHANT_ID, <P>_API_KEY, <P>_WEBHOOK_SECRET, <P>_IMPLEMENTED=true (after wiring the calls below)
+ *   <P>_API_BASE_URL, <P>_MERCHANT_ID, <P>_API_KEY, <P>_WEBHOOK_SECRET
  */
 export function gatewayProvider(id: "pearpay" | "nextpay", label: string): PaymentProvider {
   const env = (name: string) => process.env[`${id.toUpperCase()}_${name}`];
@@ -16,13 +16,13 @@ export function gatewayProvider(id: "pearpay" | "nextpay", label: string): Payme
     id,
     label,
     isAvailable() {
-      return missing().length === 0 && env("IMPLEMENTED") === "true";
+      // Configuration alone cannot enable a provider while createCheckout/refund are stubs.
+      return false;
     },
     unavailableReason() {
       const m = missing();
       if (m.length) return `Missing ${m.map((k) => `${id.toUpperCase()}_${k}`).join(", ")}`;
-      if (env("IMPLEMENTED") !== "true") return "API calls not implemented yet — waiting for the official API specification.";
-      return null;
+      return "API calls not implemented yet — waiting for the official API specification.";
     },
     async createCheckout() {
       // TODO(PG spec): POST {API_BASE_URL}/checkout with amount, currency, reference=paymentId, redirect/webhook URLs.
@@ -44,6 +44,9 @@ export function gatewayProvider(id: "pearpay" | "nextpay", label: string): Payme
         type: String(payload.type ?? "payment"),
         paymentId: payload.reference ? String(payload.reference) : undefined,
         providerRef: payload.transaction_id ? String(payload.transaction_id) : undefined,
+        amountCents: typeof payload.amount_cents === "number" ? payload.amount_cents : undefined,
+        currency: typeof payload.currency === "string" ? payload.currency.toUpperCase() : undefined,
+        merchantId: typeof payload.merchant_id === "string" ? payload.merchant_id : undefined,
         status: status === "paid" || status === "succeeded" ? "succeeded" : status === "failed" ? "failed" : status === "refunded" ? "refunded" : "ignored",
         raw: payload,
       };

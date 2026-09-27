@@ -31,9 +31,9 @@ export async function login(fd: FormData): Promise<ActionResult> {
     // Per-account limit does not depend on the IP, so rotating/forging addresses cannot bypass it.
     const ipKey = meta.ip ?? "unknown";
     if (
-      !rateLimit(`login-email:${input.email}`, 10, 15 * 60000) ||
-      !rateLimit(`login:${ipKey}:${input.email}`, 8, 15 * 60000) ||
-      (meta.ip !== null && !rateLimit(`login-ip:${meta.ip}`, 40, 15 * 60000))
+      !(await rateLimit(`login-email:${input.email}`, 10, 15 * 60000)) ||
+      !(await rateLimit(`login:${ipKey}:${input.email}`, 8, 15 * 60000)) ||
+      (meta.ip !== null && !(await rateLimit(`login-ip:${meta.ip}`, 40, 15 * 60000)))
     ) throw new ActionError("too_many_attempts");
     const db = await getDb();
     const [user] = await db.select().from(users).where(eq(users.email, input.email));
@@ -46,7 +46,7 @@ export async function login(fd: FormData): Promise<ActionResult> {
     await createSession(db, user.id);
     // A successful sign-in clears this account's failure counters. The IP-wide counter is deliberately kept:
     // otherwise one valid account could reset it after every burst of guesses against other accounts.
-    rateLimitReset(`login-email:${input.email}`, `login:${ipKey}:${input.email}`);
+    await rateLimitReset(`login-email:${input.email}`, `login:${ipKey}:${input.email}`);
     if (user.role === "admin") await audit(db, { user, seller: null, sessionId: "" }, "auth.login");
     return { ok: true, redirect: await destinationFor(user.id, input.next ?? null) };
   });
@@ -64,7 +64,7 @@ export async function signup(fd: FormData): Promise<ActionResult> {
     }).parse(Object.fromEntries(fd));
     if (passwordProblems(input.password)) throw new ActionError("weak_password");
     const meta = await requestMeta();
-    if (!rateLimit(`signup:${meta.ip ?? "unknown"}`, meta.ip ? 10 : 60, 60 * 60000)) throw new ActionError("too_many_attempts");
+    if (!(await rateLimit(`signup:${meta.ip ?? "unknown"}`, meta.ip ? 10 : 60, 60 * 60000))) throw new ActionError("too_many_attempts");
     const db = await getDb();
     const { lang } = await getT();
     const [exists] = await db.select({ id: users.id }).from(users).where(eq(users.email, input.email));
@@ -95,7 +95,7 @@ export async function resendVerification(): Promise<ActionResult> {
   return run(async () => {
     const viewer = await getViewer();
     if (!viewer) throw new ActionError("forbidden");
-    if (!rateLimit(`verify:${viewer.user.id}`, 3, 60 * 60000)) throw new ActionError("too_many_attempts");
+    if (!(await rateLimit(`verify:${viewer.user.id}`, 3, 60 * 60000))) throw new ActionError("too_many_attempts");
     await sendVerification(viewer.user.id, viewer.user.email, viewer.user.name, viewer.user.locale);
     const { t } = await getT();
     return { ok: true, message: t("Verification email sent.", "인증 메일을 보냈습니다.") };
@@ -106,7 +106,7 @@ export async function requestPasswordReset(fd: FormData): Promise<ActionResult> 
   return run(async () => {
     const { email: addr } = z.object({ email }).parse(Object.fromEntries(fd));
     const meta = await requestMeta();
-    if (!rateLimit(`reset-email:${addr}`, 3, 60 * 60000) || !rateLimit(`reset:${meta.ip ?? "unknown"}`, meta.ip ? 5 : 30, 60 * 60000)) throw new ActionError("too_many_attempts");
+    if (!(await rateLimit(`reset-email:${addr}`, 3, 60 * 60000)) || !(await rateLimit(`reset:${meta.ip ?? "unknown"}`, meta.ip ? 5 : 30, 60 * 60000))) throw new ActionError("too_many_attempts");
     const db = await getDb();
     const [user] = await db.select().from(users).where(eq(users.email, addr));
     if (user && user.status === "active") {

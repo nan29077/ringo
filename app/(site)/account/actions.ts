@@ -19,17 +19,20 @@ const uuid = z.string().uuid();
 
 /* ------------------------------------------------------------------ library */
 
-export async function setLessonDone(productId: string, lessonIndex: number, done: boolean): Promise<ActionResult> {
+export async function setLessonDone(productId: string, lessonId: string, done: boolean): Promise<ActionResult> {
   return run(async () => {
     const viewer = await requireViewer("/account/library");
-    if (!isUuid(productId) || !Number.isInteger(lessonIndex) || lessonIndex < 0) throw new CommerceError("not_found");
+    if (!isUuid(productId) || !/^(?:[0-9a-f-]{36}|legacy:\d{1,3})$/.test(lessonId)) throw new CommerceError("not_found");
     const db = await getDb();
     if (!(await activeEntitlement(db, viewer.user.id, productId))) throw new CommerceError("not_found");
-    const [product] = await db.select({ lessons: s.products.lessons }).from(s.products).where(eq(s.products.id, productId));
-    if (!product || lessonIndex >= (product.lessons?.length ?? 0)) throw new CommerceError("not_found");
-    const key = and(eq(s.lessonProgress.userId, viewer.user.id), eq(s.lessonProgress.productId, productId), eq(s.lessonProgress.lessonIndex, lessonIndex));
-    if (done) await db.insert(s.lessonProgress).values({ userId: viewer.user.id, productId, lessonIndex }).onConflictDoNothing();
-    else await db.delete(s.lessonProgress).where(key);
+    await db.transaction(async (tx) => {
+      const [product] = await tx.select({ lessons: s.products.lessons }).from(s.products).where(eq(s.products.id, productId)).for("update");
+      const lessonIndex = product?.lessons?.findIndex((lesson, index) => (lesson.id ?? `legacy:${index}`) === lessonId) ?? -1;
+      if (lessonIndex < 0) throw new CommerceError("not_found");
+      const key = and(eq(s.lessonProgress.userId, viewer.user.id), eq(s.lessonProgress.productId, productId), eq(s.lessonProgress.lessonIndex, lessonIndex));
+      if (done) await tx.insert(s.lessonProgress).values({ userId: viewer.user.id, productId, lessonIndex }).onConflictDoNothing();
+      else await tx.delete(s.lessonProgress).where(key);
+    });
     return { ok: true };
   });
 }
@@ -75,7 +78,7 @@ export async function submitReview(fd: FormData): Promise<ActionResult> {
 export async function submitInquiry(fd: FormData): Promise<ActionResult> {
   return run(async () => {
     const viewer = await requireViewer("/account/inquiries");
-    if (!rateLimit(`inquiry:${viewer.user.id}`, 10, 60 * 60000)) throw new ActionError("too_many_attempts");
+    if (!(await rateLimit(`inquiry:${viewer.user.id}`, 10, 60 * 60000))) throw new ActionError("too_many_attempts");
     const db = await getDb();
     const raw = Object.fromEntries(fd);
     const inquiry = await createInquiry(db, viewer, raw);
@@ -99,7 +102,7 @@ export async function replyToInquiry(fd: FormData): Promise<ActionResult> {
     const { viewer, db, thread } = await ownThread(input.inquiryId);
     const { t } = await getT();
     if (thread.inquiry.status === "closed") throw new ActionError(t("This inquiry is closed. Start a new one if you need more help.", "종료된 문의입니다. 추가 문의는 새로 등록해 주세요."));
-    if (!rateLimit(`inquiry-reply:${viewer.user.id}`, 30, 60 * 60000)) throw new ActionError("too_many_attempts");
+    if (!(await rateLimit(`inquiry-reply:${viewer.user.id}`, 30, 60 * 60000))) throw new ActionError("too_many_attempts");
     await replyInquiry(db, viewer, thread.inquiry.id, input.body);
     return { ok: true, message: t("Message sent.", "메시지를 보냈습니다.") };
   });
@@ -134,7 +137,7 @@ export async function changePassword(fd: FormData): Promise<ActionResult> {
     const viewer = await requireViewer("/account/profile");
     const { t } = await getT();
     const input = z.object({ current: z.string().min(1).max(200), password: z.string().max(200), confirm: z.string().max(200) }).parse(Object.fromEntries(fd));
-    if (!rateLimit(`pw-change:${viewer.user.id}`, 5, 15 * 60000)) throw new ActionError("too_many_attempts");
+    if (!(await rateLimit(`pw-change:${viewer.user.id}`, 5, 15 * 60000))) throw new ActionError("too_many_attempts");
     const db = await getDb();
     const [user] = await db.select({ passwordHash: s.users.passwordHash }).from(s.users).where(eq(s.users.id, viewer.user.id));
     if (!(await verifyPassword(input.current, user?.passwordHash))) throw new ActionError(t("Your current password is incorrect.", "현재 비밀번호가 올바르지 않습니다."));

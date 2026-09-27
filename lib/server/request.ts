@@ -1,5 +1,7 @@
 import "server-only";
 import { headers } from "next/headers";
+import { inArray, lt, sql } from "drizzle-orm";
+import * as s from "@/db/schema";
 
 /**
  * Client IP that a visitor cannot forge.
@@ -28,12 +30,26 @@ export async function requestMeta() {
   };
 }
 
-export async function appOrigin() {
-  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
+/** Origin of the URL being visited. Social crawlers must receive asset URLs on this same host: local
+ * preview tunnels change names often, while APP_URL can still point at an older tunnel. */
+export async function requestOrigin() {
   const h = await headers();
   const host = h.get("x-forwarded-host") || h.get("host") || "localhost:3031";
-  const proto = h.get("x-forwarded-proto") || (host.startsWith("localhost") || host.startsWith("127.") ? "http" : "https");
+  const proto = h.get("x-forwarded-proto")?.split(",")[0]?.trim() || (host.startsWith("localhost") || host.startsWith("127.") ? "http" : "https");
   return `${proto}://${host}`;
+}
+
+export async function appOrigin() {
+  const configured = process.env.APP_URL?.replace(/\/$/, "");
+  if (!configured) return requestOrigin();
+  // Quick Tunnel names change on restart. Only override a stale tunnel URL with another
+  // Cloudflare tunnel host, so a forwarded-host header cannot replace a production domain.
+  try {
+    const current = new URL(await requestOrigin());
+    const saved = new URL(configured);
+    if (saved.hostname.endsWith(".trycloudflare.com") && current.hostname.endsWith(".trycloudflare.com") && current.protocol === "https:") return current.origin;
+  } catch { /* Background jobs have no request headers. */ }
+  return configured;
 }
 
 /**
@@ -50,14 +66,34 @@ export async function mailOrigin() {
 }
 
 const buckets = new Map<string, { count: number; reset: number }>();
+let lastRateLimitCleanup = 0;
 /** Clears a counter after a successful attempt, so legitimate use never exhausts an abuse limit. */
-export function rateLimitReset(...keys: string[]) {
+export async function rateLimitReset(...keys: string[]) {
   for (const k of keys) buckets.delete(k);
+  if (process.env.DATABASE_URL && keys.length) {
+    const { getDb } = await import("./db");
+    await (await getDb()).delete(s.rateLimits).where(inArray(s.rateLimits.key, keys));
+  }
 }
 
-/** Simple fixed-window limiter (per server instance). Use a shared store (Redis/DynamoDB) when scaling out. */
-export function rateLimit(key: string, limit: number, windowMs: number) {
+/** Atomic shared fixed window in PostgreSQL; embedded local mode keeps a lightweight memory counter. */
+export async function rateLimit(key: string, limit: number, windowMs: number) {
   const now = Date.now();
+  if (process.env.DATABASE_URL) {
+    const { getDb } = await import("./db");
+    const db = await getDb();
+    if (now - lastRateLimitCleanup > 600000) {
+      lastRateLimitCleanup = now;
+      await db.delete(s.rateLimits).where(lt(s.rateLimits.resetAt, new Date(now - 86400000)));
+    }
+    const nowDate = new Date(now);
+    const [row] = await db.insert(s.rateLimits).values({ key, count: 1, resetAt: new Date(now + windowMs) })
+      .onConflictDoUpdate({ target: s.rateLimits.key, set: {
+        count: sql`case when ${s.rateLimits.resetAt} <= ${nowDate} then 1 else ${s.rateLimits.count} + 1 end`,
+        resetAt: sql`case when ${s.rateLimits.resetAt} <= ${nowDate} then ${new Date(now + windowMs)} else ${s.rateLimits.resetAt} end`,
+      } }).returning({ count: s.rateLimits.count });
+    return row.count <= limit;
+  }
   const b = buckets.get(key);
   if (!b || b.reset < now) {
     buckets.set(key, { count: 1, reset: now + windowMs });

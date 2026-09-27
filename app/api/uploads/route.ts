@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   // Every upload kind comes from a console (seller center or admin), which defaults to Korean; the
   // message is shown in the uploader's toast, so it follows the console language.
   const { t } = await getT("ko");
-  if (!rateLimit(`upload:${viewer.user.id}`, 60, 10 * 60000)) return NextResponse.json({ error: t("Too many uploads. Try again in a few minutes.", "업로드가 너무 많습니다. 잠시 후 다시 시도하세요.") }, { status: 429 });
+  if (!(await rateLimit(`upload:${viewer.user.id}`, 60, 10 * 60000))) return NextResponse.json({ error: t("Too many uploads. Try again in a few minutes.", "업로드가 너무 많습니다. 잠시 후 다시 시도하세요.") }, { status: 429 });
   const form = await request.formData().catch(() => null);
   const file = form?.get("file");
   const kind = String(form?.get("kind") || "") as Kind;

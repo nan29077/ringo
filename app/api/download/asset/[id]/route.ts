@@ -23,10 +23,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     allowed = ent.length > 0;
   }
   if (!allowed) return new Response("Not found", { status: 404 });
-  if (!rateLimit(`dl:${viewer.user.id}`, 120, 60 * 60000)) return new Response("Too many downloads, try later", { status: 429 });
+  if (!(await rateLimit(`dl:${viewer.user.id}`, 120, 60 * 60000))) return new Response("Too many downloads, try later", { status: 429 });
   const meta = await requestMeta();
   await db.insert(s.downloadLogs).values({ userId: viewer.user.id, productId: row.product.id, assetId: id, ip: meta.ip });
   // `?inline=1` lets the course player stream video/audio lessons in the page instead of forcing a download.
   const inline = new URL(request.url).searchParams.get("inline") === "1" && /^(video|audio)\//.test(row.asset.contentType);
-  return streamDownload(row.asset.storageKey, row.asset.filename, row.asset.contentType, { inline });
+  return streamDownload(row.asset.storageKey, row.asset.filename, row.asset.contentType, { inline, range: request.headers.get("range") });
 }

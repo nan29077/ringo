@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, not, or, sql } from "drizzle-orm";
 import * as s from "@/db/schema";
 import { requireAdmin } from "@/lib/server/auth";
 import { getDb } from "@/lib/server/db";
@@ -19,8 +19,10 @@ export default async function AdminRefunds({ searchParams }: { searchParams: Pro
   const { t, lang } = await getT("ko");
   const db = await getDb();
   const settings = await getSettings(db);
-  const open = and(eq(s.orders.status, "paid"), eq(s.orders.refundStatus, "requested"));
-  const done = inArray(s.orders.refundStatus, ["refunded", "rejected"]);
+  const latePayment = sql`exists (select 1 from ${s.payments} p where p.order_id = ${s.orders.id} and p.status = 'succeeded')`;
+  const extraReceipt = or(and(eq(s.orders.status, "paid"), sql`(select count(*) from ${s.payments} p where p.order_id = ${s.orders.id} and p.status = 'succeeded') > 1`), and(eq(s.orders.status, "refunded"), latePayment));
+  const open = or(and(eq(s.orders.status, "paid"), inArray(s.orders.refundStatus, ["requested", "processing"])), and(inArray(s.orders.status, ["cancelled", "expired"]), latePayment), extraReceipt);
+  const done = and(inArray(s.orders.refundStatus, ["refunded", "rejected"]), not(extraReceipt!));
   // The reason an admin typed lives on the refund row, not on the order, so it is pulled in here.
   const refundReasonSql = sql<string | null>`(select r.reason from ${s.refunds} r where r.order_id = ${s.orders.id} and r.status = 'succeeded' order by r.created_at desc limit 1)`;
   const select = () => db.select({ o: s.orders, seller: s.sellers.displayName, provider: orderProviderSql, processedReason: refundReasonSql }).from(s.orders).innerJoin(s.sellers, eq(s.sellers.id, s.orders.sellerId));
@@ -31,7 +33,7 @@ export default async function AdminRefunds({ searchParams }: { searchParams: Pro
   ]);
   return (
     <>
-      <PageHeader title={t("Refund requests", "환불 요청")} description={t("Buyer refund requests across all sellers, oldest first, followed by recently processed refunds.", "전체 판매자의 환불 요청(오래된 순)과 최근 처리된 환불 내역입니다.")} />
+      <PageHeader title={t("Refund requests", "환불 요청")} description={t("Buyer requests, late payments and refunds awaiting reconciliation, followed by processed refunds.", "구매자 환불 요청, 지연 결제, 대사 대기 중인 환불과 최근 처리 내역입니다.")} />
       <div className="mb-4">
         <Notice>{t(`Buyers can request a refund within ${settings.commerce.refundWindowDays} days of payment. Open requests hold the order from settlement. Open an order to approve, reject, force a refund or record a manual PG refund.`, `구매자는 결제 후 ${settings.commerce.refundWindowDays}일 이내에 환불을 요청할 수 있으며, 요청이 열려 있는 주문은 정산에서 보류됩니다. 주문 상세에서 승인·거절·강제 환불·수동 환불 기록을 처리하세요.`)}</Notice>
       </div>

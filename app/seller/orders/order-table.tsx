@@ -26,7 +26,7 @@ export function OrderTable({ rows, t, lang, mode = "all", empty, footer }: { row
           </td>
         );
         const buyer = <td><div className="whitespace-nowrap">{o.buyerName}</div><div className="text-[11px] text-[#8a8d96]">{o.buyerEmail}</div></td>;
-        const product = <td className="max-w-[240px] truncate">{o.productTitle}</td>;
+        const product = <td className="max-w-[240px] truncate">{lang === "ko" ? o.productTitleKo || o.productTitle : o.productTitle}</td>;
         const manage = <td className="text-right"><Link href={`/seller/orders/${o.id}`} className="rc-btn rc-btn-outline rc-btn-sm">{t("Open", "처리")}</Link></td>;
         if (mode === "production") {
           const overdue = !!o.dueAt && o.dueAt.getTime() < now;

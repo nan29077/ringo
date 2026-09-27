@@ -39,7 +39,7 @@ export default async function TestPaymentPage({ params }: { params: Promise<{ pa
           <h1 id="pay-title" className="sf-h1">{formatMoney(payment.amountCents, payment.currency, lang)}</h1>
           <dl className="sf-dl !mt-5">
             <dt>{t("Order", "주문번호")}</dt><dd>{order.orderNo}</dd>
-            <dt>{t("Product", "상품")}</dt><dd>{order.productTitle}</dd>
+            <dt>{t("Product", "상품")}</dt><dd>{t(order.productTitle, order.productTitleKo || order.productTitle)}</dd>
             <dt>{t("Buyer", "구매자")}</dt><dd>{order.buyerEmail}</dd>
             <dt>{t("Reference", "결제 참조")}</dt><dd className="font-mono text-[13px]">{payment.providerRef ?? payment.id}</dd>
           </dl>

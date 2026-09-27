@@ -50,7 +50,7 @@ export async function sendMemberPasswordReset(userId: string): Promise<ActionRes
     const { t } = await getT("ko");
     const { db, user } = await loadUser(userId);
     if (user.status !== "active") return { ok: false, error: t("Reactivate the account before sending a reset link.", "정지된 계정입니다. 이용 재개 후 발송하세요.") };
-    if (!rateLimit(`admin-reset:${user.id}`, 5, 60 * 60000)) throw new ActionError("too_many_attempts");
+    if (!(await rateLimit(`admin-reset:${user.id}`, 5, 60 * 60000))) throw new ActionError("too_many_attempts");
     const token = randomToken();
     await db.insert(s.authTokens).values({ userId: user.id, type: "reset_password", tokenHash: sha256(token), expiresAt: new Date(Date.now() + 3600000) });
     const origin = await appOrigin();

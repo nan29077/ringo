@@ -115,6 +115,7 @@ export async function grantEntitlement(db: DB, viewer: Viewer, userId: string, p
         productId: product.id,
         sellerId: product.sellerId,
         productTitle: product.titleEn,
+        productTitleKo: product.titleKo,
         status: "paid",
         currency: product.currency,
         subtotalCents: 0,
@@ -187,7 +188,7 @@ export function sellerOrderAgg(db: DB, since: Date) {
 export async function payoutOverview(db: DB) {
   const settings = await getSettings(db);
   const cutoff = new Date(Date.now() - settings.commerce.refundWindowDays * 86400000);
-  const eligible = sql`(${s.orders.paidAt} <= ${cutoff.toISOString()}::timestamptz and ${s.orders.refundStatus} <> 'requested' and ${s.orders.fulfillmentStatus} in ('not_required','delivered'))`;
+  const eligible = sql`(${s.orders.paidAt} <= ${cutoff.toISOString()}::timestamptz and ${s.orders.refundStatus} not in ('requested','processing') and (select count(*) from ${s.payments} p where p.order_id = ${s.orders.id} and p.status = 'succeeded') <= 1 and ${s.orders.fulfillmentStatus} in ('not_required','delivered'))`;
   const orderRows = await db
     .select({
       sellerId: s.orders.sellerId,
@@ -284,4 +285,3 @@ export async function knownProviders(db: DB) {
   const set = new Set(["test", "pearpay", "nextpay", "free", "manual", ...rows.map((r) => r.provider)]);
   return [...set];
 }
-

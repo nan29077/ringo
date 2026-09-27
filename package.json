@@ -24,6 +24,8 @@
     "test:qa4": "node tests/tools/qa4-verify.mjs",
     "test:policy": "node tests/tools/qa5-policy.mjs",
     "test:security": "node tests/tools/security-regress.mjs",
+    "test:commerce": "node --conditions=react-server --import tsx tests/tools/audit-regression.mts",
+    "test:routes": "node --conditions=react-server --import tsx tests/tools/route-regression.mts",
     "test:crawl": "node tests/tools/crawl.mjs admin@ringo.local /admin /admin 300"
   },
   "dependencies": {

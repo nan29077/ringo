@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { mailOrigin } from "./request";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -59,19 +60,30 @@ export function parseLessons(raw: string | undefined, previous: s.Lesson[] = [])
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      return parsed.slice(0, 200).map((l) => ({
+      const used = new Set<string>();
+      return parsed.slice(0, 200).map((l) => {
+        const claimed = typeof l.id === "string" ? l.id : "";
+        const matching = previous.findIndex((p, i) => (p.id ?? `legacy:${i}`) === claimed);
+        const byTitle = previous.map((p, i) => ({ p, i })).filter(({ p }) => p.title === l.title);
+        const previousIndex = matching >= 0 ? matching : byTitle.length === 1 ? byTitle[0].i : -1;
+        const id = previousIndex >= 0 ? (previous[previousIndex].id ?? `legacy:${previousIndex}`) : randomUUID();
+        if (used.has(id)) throw new CommerceError("invalid_lessons");
+        used.add(id);
+        return {
+        id,
         title: String(l.title ?? "").slice(0, 200),
         assetId: l.assetId ? String(l.assetId) : null,
         minutes: l.minutes ? Math.max(0, Math.min(999, Number(l.minutes) || 0)) : null,
         preview: !!l.preview,
         videoUrl: safeVideoUrl(l.videoUrl),
         body: l.body ? String(l.body).slice(0, 20000) : null,
-      })).filter((l) => l.title);
+      }; }).filter((l) => l.title);
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof CommerceError) throw error;
     /* plain text fallback */
   }
-  return raw.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 200).map((title, i) => ({ title: title.slice(0, 200), assetId: previous[i]?.assetId ?? null }));
+  return raw.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 200).map((title, i) => ({ id: previous[i]?.id ?? (previous[i] ? `legacy:${i}` : randomUUID()), title: title.slice(0, 200), assetId: previous[i]?.assetId ?? null }));
 }
 
 /**
@@ -158,14 +170,30 @@ export async function saveProduct(db: DB, viewer: Viewer, raw: Record<string, un
     updatedAt: new Date(),
   };
   if (existing) {
-    // An edit must never leave a product on sale with nothing to deliver — for example an admin switching a
-    // download product to a course, which has no lessons yet. Checked against the post-edit shape, before saving.
-    if (existing.status === "published") await assertDeliverable(db, { id: existing.id, deliveryType, lessons: values.lessons });
     const slug = input.slug && input.slug !== existing.slug ? await uniqueSlug(db, input.slug, existing.id, { strict: true }) : existing.slug;
-    const [row] = await db.update(s.products).set({ ...values, slug }).where(eq(s.products.id, existing.id)).returning();
-    // Lessons are the deliverable for a course, so editing them on a live product is a content change.
-    if (JSON.stringify(existing.lessons ?? []) !== JSON.stringify(row.lessons ?? [])) await flagContentChange(db, viewer, existing);
-    return Object.assign(row, { changes: productChanges(existing, row) });
+    return db.transaction(async (tx) => {
+      const [locked] = await tx.select().from(s.products).where(eq(s.products.id, existing.id)).for("update");
+      if (!locked || JSON.stringify(locked.lessons ?? []) !== JSON.stringify(existing.lessons ?? [])) throw new CommerceError("invalid_state");
+      if (locked.status === "published") await assertDeliverable(tx as unknown as DB, { id: locked.id, deliveryType, lessons: values.lessons });
+      const [row] = await tx.update(s.products).set({ ...values, slug }).where(eq(s.products.id, locked.id)).returning();
+      if (JSON.stringify(locked.lessons ?? []) !== JSON.stringify(row.lessons ?? [])) {
+        // Progress still uses an index in storage. Remap it under the product lock by stable lesson
+        // identity; the progress action takes that same lock before resolving a submitted lesson ID.
+        const oldIds = (locked.lessons ?? []).map((l, i) => l.id ?? `legacy:${i}`);
+        const newIndexes = new Map((row.lessons ?? []).map((l, i) => [l.id ?? `legacy:${i}`, i]));
+        const progress = await tx.select().from(s.lessonProgress).where(eq(s.lessonProgress.productId, row.id));
+        if (progress.length) {
+          await tx.delete(s.lessonProgress).where(eq(s.lessonProgress.productId, row.id));
+          const moved = progress.flatMap((p) => {
+            const lessonIndex = newIndexes.get(oldIds[p.lessonIndex]);
+            return lessonIndex === undefined ? [] : [{ userId: p.userId, productId: p.productId, lessonIndex, completedAt: p.completedAt }];
+          });
+          if (moved.length) await tx.insert(s.lessonProgress).values(moved);
+        }
+        await flagContentChange(tx as unknown as DB, viewer, locked);
+      }
+      return Object.assign(row, { changes: productChanges(locked, row) });
+    });
   }
   const settings = await getSettings(db);
   const [row] = await db
@@ -183,7 +211,7 @@ export async function submitProduct(db: DB, viewer: Viewer, productId: string) {
   if (product.deliveryType === "download" || product.deliveryType === "collection") {
     if (!assets.length) throw new CommerceError("file_required");
   }
-  if (product.deliveryType === "course" && !(product.lessons ?? []).length) throw new CommerceError("lessons_required");
+  if (product.deliveryType === "course") await assertDeliverable(db, product);
   const settings = await getSettings(db);
   const publish = viewer.user.role === "admin" || settings.moderation.autoApproveProducts;
   await db.update(s.products).set({
@@ -202,7 +230,13 @@ export async function assertDeliverable(db: DB, product: Pick<Product, "id" | "d
     const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(s.productAssets).where(eq(s.productAssets.productId, product.id));
     if (!n) throw new CommerceError("file_required");
   }
-  if (product.deliveryType === "course" && !(product.lessons ?? []).length) throw new CommerceError("lessons_required");
+  if (product.deliveryType === "course") {
+    const lessons = product.lessons ?? [];
+    if (!lessons.length) throw new CommerceError("lessons_required");
+    const assets = await db.select({ id: s.productAssets.id }).from(s.productAssets).where(eq(s.productAssets.productId, product.id));
+    const validAssets = new Set(assets.map((asset) => asset.id));
+    if (lessons.some((lesson) => !lesson.body?.trim() && !lesson.videoUrl && !(lesson.assetId && validAssets.has(lesson.assetId)))) throw new CommerceError("lesson_content_required");
+  }
 }
 
 export async function reviewProduct(db: DB, viewer: Viewer, productId: string, decision: "approve" | "reject", reason?: string) {

@@ -12,6 +12,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
   const { provider: providerId } = await params;
   const provider = getProvider(providerId);
   if (!provider || provider.id === "test") return new Response("Unknown provider", { status: 404 });
+  if (!provider.isAvailable()) return new Response("Provider not configured", { status: 503 });
   const db = await getDb();
   const raw = await request.text();
   let event;
@@ -33,9 +34,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
     eventRow = existing;
   }
   try {
+    if (event.status !== "ignored" && (!event.paymentId || !/^[0-9a-f-]{36}$/.test(event.paymentId))) throw new Error("Missing payment id");
     if (event.paymentId && /^[0-9a-f-]{36}$/.test(event.paymentId)) {
+      const [payment] = await db.select().from(s.payments).where(eq(s.payments.id, event.paymentId));
+      if (!payment || payment.provider !== providerId) throw new Error("Payment provider mismatch");
+      const merchantId = process.env[`${providerId.toUpperCase()}_MERCHANT_ID`];
+      if (!Number.isSafeInteger(event.amountCents) || event.amountCents !== payment.amountCents || event.currency !== payment.currency || !event.merchantId || event.merchantId !== merchantId) {
+        throw new Error("Webhook amount, currency or merchant mismatch");
+      }
+      if (payment.providerRef && event.providerRef && payment.providerRef !== event.providerRef) throw new Error("Payment reference mismatch");
       if (event.status === "succeeded") await confirmPayment(db, event.paymentId, { providerRef: event.providerRef, raw: event.raw });
       else if (event.status === "failed" || event.status === "cancelled") await failPayment(db, event.paymentId, event.type, event.status);
+      else if (event.status === "refunded") throw new Error("Refund webhook needs reconciliation");
     }
     await db.update(s.paymentEvents).set({ processedAt: new Date(), error: null }).where(eq(s.paymentEvents.id, eventRow.id));
     return Response.json({ ok: true });

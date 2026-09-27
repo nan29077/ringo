@@ -35,7 +35,7 @@ export function AdminOrderTable({ rows, t, lang, mode = "all", empty, footer }: 
         );
         const product = (
           <td className="max-w-[260px]">
-            <div className="truncate">{o.productTitle}</div>
+            <div className="truncate">{lang === "ko" ? o.productTitleKo || o.productTitle : o.productTitle}</div>
             <Link href={`/admin/sellers/${o.sellerId}`} className="text-[11px] text-[#8a8d96] hover:underline">{seller}</Link>
           </td>
         );

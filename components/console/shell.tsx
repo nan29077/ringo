@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { ChevronDown, ExternalLink, LogOut, Menu, Search, X } from "lucide-react";
 import * as Icons from "lucide-react";
 import { LanguageToggle } from "@/components/common/language-toggle";
@@ -20,6 +20,9 @@ export function ConsoleShell({ groups, workspace, user, children }: {
   const { t } = useLang();
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  const [mobile, setMobile] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const openButtonRef = useRef<HTMLButtonElement>(null);
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const [pending, start] = useTransition();
@@ -28,6 +31,39 @@ export function ConsoleShell({ groups, workspace, user, children }: {
   const activeHref = allHrefs.filter((h) => h === path || (h !== "/admin" && h !== "/seller" && path.startsWith(h + "/"))).sort((a, b) => b.length - a.length)[0];
   const isActive = (href: string) => href === activeHref;
   const q = query.trim().toLowerCase();
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const update = () => setMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    if (!open || !mobile) return;
+    const previousOverflow = document.body.style.overflow;
+    const opener = openButtonRef.current;
+    document.body.style.overflow = "hidden";
+    // The mobile drawer has just changed from hidden to visible; focus after layout commits.
+    const focusFrame = requestAnimationFrame(() => sidebarRef.current?.querySelector<HTMLButtonElement>("[data-menu-close]")?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); setOpen(false); return; }
+      if (event.key !== "Tab") return;
+      const focusable = [...(sidebarRef.current?.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])') ?? [])];
+      const first = focusable[0], last = focusable.at(-1);
+      if (!first || !last) return;
+      if (!sidebarRef.current?.contains(document.activeElement)) { event.preventDefault(); (event.shiftKey ? last : first).focus(); }
+      else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", onKeyDown);
+      opener?.focus();
+    };
+  }, [open, mobile]);
 
   const nav = (
     <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-6" aria-label={t("Console navigation", "관리 메뉴")}>
@@ -92,7 +128,7 @@ export function ConsoleShell({ groups, workspace, user, children }: {
 
   return (
     <div className="rc-root">
-      <aside className={`rc-sidebar ${open ? "open" : ""}`}>
+      <aside ref={sidebarRef} id="console-menu" className={`rc-sidebar ${open ? "open" : ""}`} role={mobile && open ? "dialog" : undefined} aria-modal={mobile && open ? true : undefined} aria-label={mobile && open ? t("Navigation menu", "관리 메뉴") : undefined} aria-hidden={mobile && !open ? true : undefined} inert={mobile && !open}>
         <div className="flex shrink-0 items-center justify-between px-5 pt-5 pb-3">
           <Link href="/" className="flex items-center gap-2">
             <img src="/favicon.svg" alt="" className="size-8" />
@@ -101,7 +137,7 @@ export function ConsoleShell({ groups, workspace, user, children }: {
               <span className="block text-[15px] font-bold text-[#1c1d22]">{t(workspace.en, workspace.ko)}</span>
             </span>
           </Link>
-          <button className="lg:hidden" aria-label={t("Close menu", "메뉴 닫기")} onClick={() => setOpen(false)}><X className="size-5" /></button>
+          <button data-menu-close className="lg:hidden" aria-label={t("Close menu", "메뉴 닫기")} onClick={() => setOpen(false)}><X className="size-5" /></button>
         </div>
         <div className="shrink-0 px-4 pb-3">
           <label className="flex h-9 items-center gap-2 rounded-lg border border-[#e4e5ea] bg-white px-3 text-sm">
@@ -115,10 +151,10 @@ export function ConsoleShell({ groups, workspace, user, children }: {
           {profile}
         </div>
       </aside>
-      {open && <div className="rc-backdrop lg:hidden" onClick={() => setOpen(false)} />}
-      <div className="rc-main">
+      {open && <div className="rc-backdrop lg:hidden" aria-hidden="true" onClick={() => setOpen(false)} />}
+      <div className="rc-main" inert={mobile && open}>
         <header className="rc-topbar">
-          <button className="lg:hidden" aria-label={t("Open menu", "메뉴 열기")} onClick={() => setOpen(true)}><Menu className="size-5" /></button>
+          <button ref={openButtonRef} className="lg:hidden" aria-label={t("Open menu", "메뉴 열기")} aria-controls="console-menu" aria-expanded={open} onClick={() => setOpen(true)}><Menu className="size-5" /></button>
           {/* The sidebar carries the logo on desktop, but it is off-screen on phones, so the top bar shows it there. */}
           <Link href={workspace.tone === "admin" ? "/admin" : "/seller"} className="flex min-w-0 items-center gap-2 lg:hidden">
             <img src="/favicon.svg" alt="" className="size-7 shrink-0" />
@@ -136,8 +172,6 @@ export function ConsoleShell({ groups, workspace, user, children }: {
   );
 }
 
-// A count, capped so a long queue does not stretch the menu.
 function Badge({ n, label }: { n: number; label: string }) {
-  const text = n > 99 ? "99+" : String(n);
-  return <span className="rc-new" aria-label={`${text} ${label}`} title={`${text} ${label}`}>{text}</span>;
+  return <span className="rc-new" aria-label={`${n} ${label}`} title={`${n} ${label}`}>N</span>;
 }

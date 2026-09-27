@@ -95,7 +95,7 @@ export default async function AdminDashboard() {
               <tr key={o.id}>
                 <td><Link href={`/admin/orders/${o.id}`} className="font-semibold text-[#2f4ac2] hover:underline">{o.orderNo}</Link><div className="text-[11px] text-[#8a8d96]">{formatDate(o.createdAt, lang, true)}</div></td>
                 <td>{o.buyerName}</td>
-                <td className="max-w-[220px] truncate">{o.productTitle}</td>
+                <td className="max-w-[220px] truncate">{lang === "ko" ? o.productTitleKo || o.productTitle : o.productTitle}</td>
                 <td className="font-medium">{formatMoney(o.totalCents, o.currency, lang)}</td>
                 <td className="space-x-1"><StatusBadge map={orderStatus} value={o.status} lang={lang} />{o.refundStatus === "requested" && <StatusBadge map={refundStatus} value="requested" lang={lang} />}</td>
               </tr>

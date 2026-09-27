@@ -23,6 +23,13 @@ const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" 
 const created = () => ts("created_at").notNull().defaultNow();
 const updated = () => ts("updated_at").notNull().defaultNow();
 
+/** Shared fixed-window request limits for multi-instance PostgreSQL deployments. */
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull(),
+  resetAt: ts("reset_at").notNull(),
+});
+
 export type UserRole = "buyer" | "seller" | "admin";
 export type UserStatus = "active" | "suspended" | "withdrawn";
 
@@ -116,7 +123,7 @@ export const categories = pgTable("categories", {
 export type DeliveryType = "download" | "course" | "service" | "collection";
 export type ProductStatus = "draft" | "pending_review" | "published" | "rejected" | "suspended" | "archived";
 /** Course lesson. Content is a video URL (YouTube / Vimeo / direct file), an uploaded asset, and/or text. */
-export type Lesson = { title: string; assetId?: string | null; minutes?: number | null; preview?: boolean; videoUrl?: string | null; body?: string | null };
+export type Lesson = { id?: string; title: string; assetId?: string | null; minutes?: number | null; preview?: boolean; videoUrl?: string | null; body?: string | null };
 
 export const products = pgTable(
   "products",
@@ -240,7 +247,7 @@ export const linkClicks = pgTable(
 
 export type OrderStatus = "pending_payment" | "paid" | "refunded" | "cancelled" | "expired";
 export type FulfillmentStatus = "not_required" | "pending" | "in_progress" | "delivered";
-export type RefundStatus = "none" | "requested" | "rejected" | "refunded";
+export type RefundStatus = "none" | "requested" | "rejected" | "processing" | "refunded";
 
 export const orders = pgTable(
   "orders",
@@ -251,6 +258,7 @@ export const orders = pgTable(
     productId: uuid("product_id").notNull().references(() => products.id),
     sellerId: uuid("seller_id").notNull().references(() => sellers.id),
     productTitle: text("product_title").notNull(),
+    productTitleKo: text("product_title_ko"),
     status: text("status").$type<OrderStatus>().notNull().default("pending_payment"),
     currency: text("currency").notNull(),
     subtotalCents: integer("subtotal_cents").notNull(),
